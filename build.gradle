@@ -49,11 +49,13 @@ task mavenPom(dependsOn: classes) {
       project {
         groupId 'com.soundcloud'
         name 'hystrix-prometheus-metrics-publisher'
-        description = 'This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.'
+        description 'This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.'
         developers {
           developer {
             id 'tomcz'
             name 'Tom Czarniecki'
+            organization = 'SoundCloud'
+            organizationUrl 'https://soundcloud.com'
           }
         }
         licenses {
