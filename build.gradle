@@ -1,0 +1,95 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'maven'
+
+defaultTasks 'clean', 'build'
+
+version = '1.0-SNAPSHOT'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile 'com.netflix.hystrix:hystrix-core:1.3.13'
+  compile 'io.prometheus:client:0.0.2'
+}
+
+ext.sharedManifest = manifest {
+  attributes('Implementation-Title': project.name, 'Implementation-Version': version)
+}
+
+jar {
+  manifest = project.manifest {
+    from sharedManifest
+  }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+  classifier = 'sources'
+  from sourceSets.main.allSource
+  manifest = project.manifest {
+    from sharedManifest
+  }
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+  classifier = 'javadoc'
+  from javadoc.destinationDir
+  manifest = project.manifest {
+    from sharedManifest
+  }
+}
+
+task mavenPom(dependsOn: classes) {
+  ext.pomPath = "$libsDir/pom.xml"
+  ext.pomFile = file(pomPath)
+  doLast {
+    pom {
+      project {
+        groupId 'com.soundcloud'
+        name 'hystrix-prometheus-metrics-publisher'
+        description = 'This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.'
+        developers {
+          developer {
+            id 'tomcz'
+            name 'Tom Czarniecki'
+          }
+        }
+        licenses {
+          license {
+            name 'The Apache Software License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+            distribution 'repo'
+          }
+        }
+        url 'https://github.com/soundcloud/prometheus-hystrix'
+        scm {
+          connection 'scm:git:git@github.com:soundcloud/prometheus-hystrix.git'
+          url 'scm:git:git@github.com:soundcloud/prometheus-hystrix.git'
+          developerConnection 'scm:git:git@github.com:soundcloud/prometheus-hystrix.git'
+        }
+        issueManagement {
+          system 'github'
+          url 'https://github.com/soundcloud/prometheus-hystrix/issues'
+        }
+      }
+    }.writeTo(pomPath)
+  }
+}
+
+task bundleZip(type: Zip, dependsOn: [jar, sourcesJar, javadocJar, mavenPom]) {
+  includes = ['*.jar', '*.xml']
+  from libsDir
+}
+
+artifacts {
+  archives file: mavenPom.pomFile, builtBy: mavenPom
+  archives sourcesJar
+  archives javadocJar
+  archives bundleZip
+}
+
+task wrapper(type: Wrapper) {
+  gradleVersion = '1.11'
+}
