@@ -5,6 +5,14 @@ that publishes metrics using the [Prometheus](https://github.com/prometheus/clie
 
 See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring) Wiki for more information.
 
+## DEVELOPMENT
+
+Run `./gradlew` to compile, test and create POM & JARs.
+
+Run `./gradlew -PreleaseBuild=true -PbuildVersion=1.0.0 clean releaseJar` to create a distributable bundle
+ready for upload to Sonatype OSS repository. Before you run this make sure you have permissions to upload
+and that your GPG keys are configured.
+
 ## LICENSE
 
 Copyright 2014 SoundCloud, Inc.
