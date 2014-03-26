@@ -1,10 +1,12 @@
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'maven'
+apply plugin: 'signing'
 
 defaultTasks 'clean', 'build'
 
 version = '1.0-SNAPSHOT'
+group = 'com.soundcloud'
 
 repositories {
   mavenCentral()
@@ -47,7 +49,6 @@ task mavenPom(dependsOn: classes) {
   doLast {
     pom {
       project {
-        groupId 'com.soundcloud'
         name 'hystrix-prometheus-metrics-publisher'
         description 'This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.'
         developers {
@@ -80,17 +81,18 @@ task mavenPom(dependsOn: classes) {
   }
 }
 
-task bundleZip(type: Zip, dependsOn: [jar, sourcesJar, javadocJar, mavenPom]) {
-  includes = ['*.jar', '*.xml']
-  from libsDir
-}
-
 artifacts {
   archives file: mavenPom.pomFile, builtBy: mavenPom
   archives sourcesJar
   archives javadocJar
-  archives bundleZip
+  archives jar
 }
+
+signing {
+  sign configurations.archives
+}
+
+signArchives.onlyIf { project.hasProperty('releaseBuild') }
 
 task wrapper(type: Wrapper) {
   gradleVersion = '1.11'
