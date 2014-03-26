@@ -5,6 +5,27 @@ that publishes metrics using the [Prometheus](https://github.com/prometheus/clie
 
 See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring) Wiki for more information.
 
+## USAGE
+
+Import the metrics publisher and prometheus.
+
+```java
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
+import io.prometheus.client.Prometheus;
+```
+
+Initialise prometheus client so that it can collect metrics.
+
+```java
+Prometheus.defaultInitialize();
+```
+
+Register the metrics publisher for your application name with hystrix.
+
+```java
+HystrixPrometheusMetricsPublisher.register("application_name");
+```
+
 ## DEVELOPMENT
 
 Run `./gradlew` to compile, test and create POM & JARs.
