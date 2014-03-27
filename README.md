@@ -20,7 +20,7 @@ Initialise prometheus client so that it can collect metrics.
 Prometheus.defaultInitialize();
 ```
 
-Register the metrics publisher for your application name with hystrix.
+Register the metrics publisher for your application's namespace with hystrix.
 
 ```java
 HystrixPrometheusMetricsPublisher.register("application_name");
