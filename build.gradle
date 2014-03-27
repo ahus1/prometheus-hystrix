@@ -49,7 +49,7 @@ task mavenPom(dependsOn: classes) {
   doLast {
     pom {
       project {
-        name 'hystrix-prometheus-metrics-publisher'
+        name 'prometheus-hystrix-metrics-publisher'
         description 'This is an implementation of a HystrixMetricsPublisher that publishes metrics using the Prometheus java client.'
         developers {
           developer {
