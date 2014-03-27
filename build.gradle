@@ -5,7 +5,7 @@ apply plugin: 'signing'
 
 defaultTasks 'clean', 'build'
 
-version = project.hasProperty('buildVersion') ? project.property('buildVersion') : '1.1-SNAPSHOT'
+version = project.properties.get('buildVersion') ?: '1.1-SNAPSHOT'
 group = 'com.soundcloud'
 
 repositories {
@@ -103,7 +103,7 @@ task releaseJar(type: Jar, dependsOn: assemble) {
 uploadArchives {
   repositories {
     mavenDeployer {
-      repository(url: project.property('mavenUploadURL'))
+      repository(url: project.properties.get('mavenUploadURL') ?: "file://tmp/repo/")
     }
   }
 }
