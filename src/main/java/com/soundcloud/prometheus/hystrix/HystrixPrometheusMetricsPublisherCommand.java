@@ -19,6 +19,7 @@ import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
 import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
+import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.Prometheus;
 import io.prometheus.client.Prometheus.ExpositionHook;
@@ -45,11 +46,21 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private static final String COMMAND_NAME = "command_name";
     private static final String COMMAND_GROUP = "command_group";
 
-    private static final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
+    private static final Gauge.Builder gaugeTmpl = Gauge.newBuilder()
+            .subsystem(SUBSYSTEM)
+            .labelNames(COMMAND_GROUP, COMMAND_NAME)
+            .registerStatic(false);
+
+    // Hysterix instantiates N instances of this class, one for each command.  Thusly the inventory
+    // of metrics must always remain static, unless the metrics are statically defined as fields
+    // in the class, which is the idiomatic approach to their definition.
+    private static final ConcurrentHashMap<String, Gauge.Partial> gauges =
+            new ConcurrentHashMap<String, Gauge.Partial>();
+
+    private final Logger logger =
+            LoggerFactory.getLogger(HystrixPrometheusMetricsPublisherCommand.class);
 
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String namespace;
     private final String commandName;
@@ -142,61 +153,19 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                 }
         );
         values.put(createMetricName("latency_execute_percentile_5", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(5);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(5));
         values.put(createMetricName("latency_execute_percentile_25", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(25);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(25));
         values.put(createMetricName("latency_execute_percentile_50", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(50);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(50));
         values.put(createMetricName("latency_execute_percentile_75", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(75);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(75));
         values.put(createMetricName("latency_execute_percentile_90", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(90);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(90));
         values.put(createMetricName("latency_execute_percentile_99", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(99);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(99));
         values.put(createMetricName("latency_execute_percentile_995", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(99.5);
-                    }
-                }
-        );
+                executionLatencyCallbackFor(99.5f));
 
         final String latencyTotalDescription = "Rolling percentiles of execution times for the "
                 + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
@@ -214,61 +183,19 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                 }
         );
         values.put(createMetricName("latency_total_percentile_5", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(5);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(5));
         values.put(createMetricName("latency_total_percentile_25", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(25);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(25));
         values.put(createMetricName("latency_total_percentile_50", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(50);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(50));
         values.put(createMetricName("latency_total_percentile_75", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(75);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(75));
         values.put(createMetricName("latency_total_percentile_90", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(90);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(90));
         values.put(createMetricName("latency_total_percentile_99", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(99);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(99));
         values.put(createMetricName("latency_total_percentile_995", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(99.5);
-                    }
-                }
-        );
+                executionTotalLatencyCallbackFor(99.5f));
 
         if (exportProperties) {
             final String propDesc = "These informational metrics report the "
@@ -277,61 +204,20 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     + "expected.";
 
             values.put(createMetricName("property_value_rolling_statistical_window_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.metricsRollingStatisticalWindowInMilliseconds().get();
-                        }
-                    }
+                    numericPropertyCallbackFor(properties.metricsRollingStatisticalWindowInMilliseconds())
             );
             values.put(createMetricName("property_value_circuit_breaker_request_volume_threshold", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerRequestVolumeThreshold().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.circuitBreakerRequestVolumeThreshold()));
             values.put(createMetricName("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerSleepWindowInMilliseconds().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.circuitBreakerSleepWindowInMilliseconds()));
             values.put(createMetricName("property_value_circuit_breaker_error_threshold_percentage", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerErrorThresholdPercentage().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.circuitBreakerErrorThresholdPercentage()));
             values.put(createMetricName("property_value_circuit_breaker_force_open", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.circuitBreakerForceOpen().get());
-                        }
-                    }
-            );
+                    booleanPropertyCallbackFor(properties.circuitBreakerForceOpen()));
             values.put(createMetricName("property_value_circuit_breaker_force_closed", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.circuitBreakerForceClosed().get());
-                        }
-                    }
-            );
+                    booleanPropertyCallbackFor(properties.circuitBreakerForceClosed()));
             values.put(createMetricName("property_value_execution_isolation_thread_timeout_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.executionIsolationThreadTimeoutInMilliseconds().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.executionIsolationThreadTimeoutInMilliseconds()));
             values.put(createMetricName("property_value_execution_isolation_strategy", propDesc),
                     new Callable<Number>() {
                         @Override
@@ -341,46 +227,53 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     }
             );
             values.put(createMetricName("property_value_metrics_rolling_percentile_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.metricsRollingPercentileEnabled().get());
-                        }
-                    }
-            );
+                    booleanPropertyCallbackFor(properties.metricsRollingPercentileEnabled()));
             values.put(createMetricName("property_value_request_cache_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.requestCacheEnabled().get());
-                        }
-                    }
-            );
+                    booleanPropertyCallbackFor(properties.requestCacheEnabled()));
             values.put(createMetricName("property_value_request_log_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.requestLogEnabled().get());
-                        }
-                    }
-            );
+                    booleanPropertyCallbackFor(properties.requestLogEnabled()));
             values.put(createMetricName("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.executionIsolationSemaphoreMaxConcurrentRequests().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.executionIsolationSemaphoreMaxConcurrentRequests()));
             values.put(createMetricName("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.fallbackIsolationSemaphoreMaxConcurrentRequests()));
         }
+    }
+
+    private Callable<Number> numericPropertyCallbackFor(final HystrixProperty<Integer> prop) {
+        return new Callable<Number>() {
+            @Override
+            public Number call() {
+                return prop.get();
+            }
+        };
+    }
+
+    private Callable<Number> booleanPropertyCallbackFor(final HystrixProperty<Boolean> prop) {
+        return new Callable<Number>() {
+            @Override
+            public Number call() {
+                return booleanToNumber(prop.get());
+            }
+        };
+    }
+
+
+    private Callable<Number> executionLatencyCallbackFor(final float rank) {
+        return new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getExecutionTimePercentile(rank);
+            }
+        };
+    }
+
+    private Callable<Number> executionTotalLatencyCallbackFor(final float rank) {
+        return new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getTotalTimePercentile(rank);
+            }
+        };
     }
 
     @Override
@@ -389,7 +282,6 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
             try {
                 double value = metric.getValue().call().doubleValue();
                 gauges.get(metric.getKey())
-                        .newPartial()
                         .labelPair(COMMAND_GROUP, commandGroup)
                         .labelPair(COMMAND_NAME, commandName)
                         .apply()
@@ -441,15 +333,17 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
      * threads so we should ensure that the gauge is only registered once.
      */
     private static void registerGauge(String metricName, String namespace, String metric, String documentation) {
-        Gauge gauge = Gauge.newBuilder()
+        // Metrics can be built from immutable templates.
+        Gauge gauge = gaugeTmpl
                 .namespace(namespace)
-                .subsystem(SUBSYSTEM)
                 .name(metric)
-                .labelNames(COMMAND_GROUP, COMMAND_NAME)
                 .documentation(documentation)
-                .registerStatic(false)
                 .build();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
+        // Metrics partials can be prepopulated with label value pairs and then be #apply-ed on
+        // demand for mutation.
+        Gauge.Partial partial = gauge.newPartial();
+
+        Gauge.Partial existing = gauges.putIfAbsent(metricName, partial);
         if (existing == null) {
             Prometheus.defaultRegister(gauge);
         }

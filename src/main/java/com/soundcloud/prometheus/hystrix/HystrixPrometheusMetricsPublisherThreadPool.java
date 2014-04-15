@@ -17,6 +17,7 @@ import com.netflix.hystrix.HystrixThreadPoolKey;
 import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
+import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import io.prometheus.client.Prometheus;
 import io.prometheus.client.Prometheus.ExpositionHook;
 import io.prometheus.client.metrics.Gauge;
@@ -41,11 +42,21 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     private static final String SUBSYSTEM = "hystrix_thread_pool";
     private static final String POOL_NAME = "pool_name";
 
-    private static final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
+    private static final Gauge.Builder gaugeTmpl = Gauge.newBuilder()
+            .subsystem(SUBSYSTEM)
+            .labelNames(POOL_NAME)
+            .registerStatic(false);
+
+    // Hysterix instantiates N instances of this class, one for each command.  Thusly the inventory
+    // of metrics must always remain static, unless the metrics are statically defined as fields
+    // in the class, which is the idiomatic approach to their definition.
+    private static final ConcurrentHashMap<String, Gauge.Partial> gauges =
+            new ConcurrentHashMap<String, Gauge.Partial>();
+
+    private final Logger logger = LoggerFactory.getLogger(
+            HystrixPrometheusMetricsPublisherThreadPool.class);
 
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String namespace;
     private final String poolName;
@@ -145,38 +156,23 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
             final String propDoc = "Configuration property partitioned by pool_name.";
 
             values.put(createMetricName("property_value_core_pool_size", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.coreSize().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.coreSize()));
             values.put(createMetricName("property_value_keep_alive_time_in_minutes", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.keepAliveTimeMinutes().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.keepAliveTimeMinutes()));
             values.put(createMetricName("property_value_queue_size_rejection_threshold", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.queueSizeRejectionThreshold().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.queueSizeRejectionThreshold()));
             values.put(createMetricName("property_value_max_queue_size", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.maxQueueSize().get();
-                        }
-                    }
-            );
+                    numericPropertyCallbackFor(properties.maxQueueSize()));
         }
+    }
+
+    private Callable<Number> numericPropertyCallbackFor(final HystrixProperty<Integer> prop) {
+        return new Callable<Number>() {
+            @Override
+            public Number call() {
+                return prop.get();
+            }
+        };
     }
 
     @Override
@@ -185,7 +181,6 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
             try {
                 double value = metric.getValue().call().doubleValue();
                 gauges.get(metric.getKey())
-                        .newPartial()
                         .labelPair(POOL_NAME, poolName)
                         .apply()
                         .set(value);
@@ -210,15 +205,17 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
      * multiple threads so we should ensure that the gauge is only registered once.
      */
     private static void registerGauge(String metricName, String namespace, String metric, String documentation) {
-        Gauge gauge = Gauge.newBuilder()
+        // Metrics can be built from immutable templates.
+        Gauge gauge = gaugeTmpl
                 .namespace(namespace)
-                .subsystem(SUBSYSTEM)
                 .name(metric)
-                .labelNames(POOL_NAME)
                 .documentation(documentation)
-                .registerStatic(false)
                 .build();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
+        // Metrics partials can be prepopulated with label value pairs and then be #apply-ed on
+        // demand for mutation.
+        Gauge.Partial partial = gauge.newPartial();
+
+        Gauge.Partial existing = gauges.putIfAbsent(metricName, partial);
         if (existing == null) {
             Prometheus.defaultRegister(gauge);
         }
