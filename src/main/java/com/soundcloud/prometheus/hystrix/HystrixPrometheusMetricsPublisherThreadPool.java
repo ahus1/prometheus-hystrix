@@ -17,6 +17,7 @@ import com.netflix.hystrix.HystrixThreadPoolKey;
 import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
+import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import io.prometheus.client.Prometheus;
 import io.prometheus.client.Prometheus.ExpositionHook;
 import io.prometheus.client.metrics.Gauge;
@@ -142,40 +143,10 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         );
 
         if (exportProperties) {
-            final String propDoc = "Configuration property partitioned by pool_name.";
-
-            values.put(createMetricName("property_value_core_pool_size", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.coreSize().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_keep_alive_time_in_minutes", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.keepAliveTimeMinutes().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_queue_size_rejection_threshold", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.queueSizeRejectionThreshold().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_max_queue_size", propDoc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.maxQueueSize().get();
-                        }
-                    }
-            );
+            createIntegerProperty("property_value_core_pool_size", properties.coreSize());
+            createIntegerProperty("property_value_keep_alive_time_in_minutes", properties.keepAliveTimeMinutes());
+            createIntegerProperty("property_value_queue_size_rejection_threshold", properties.queueSizeRejectionThreshold());
+            createIntegerProperty("property_value_max_queue_size", properties.maxQueueSize());
         }
     }
 
@@ -194,6 +165,17 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
                         metric.getKey(), poolName), e);
             }
         }
+    }
+
+    private void createIntegerProperty(String name, final HystrixProperty<Integer> property) {
+        values.put(createMetricName(name, "Configuration property partitioned by pool_name."),
+                new Callable<Number>() {
+                    @Override
+                    public Number call() {
+                        return property.get();
+                    }
+                }
+        );
     }
 
     private String createMetricName(String metric, String documentation) {

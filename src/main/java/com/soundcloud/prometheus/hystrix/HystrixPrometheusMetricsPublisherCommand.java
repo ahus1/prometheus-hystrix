@@ -19,6 +19,7 @@ import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
 import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
+import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.Prometheus;
 import io.prometheus.client.Prometheus.ExpositionHook;
@@ -141,62 +142,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     }
                 }
         );
-        values.put(createMetricName("latency_execute_percentile_5", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(5);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_25", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(25);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_50", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(50);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_75", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(75);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_90", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(90);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_99", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(99);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_execute_percentile_995", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimePercentile(99.5);
-                    }
-                }
-        );
+        createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_75", 75, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_90", 90, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecuteDescription);
+        createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecuteDescription);
 
         final String latencyTotalDescription = "Rolling percentiles of execution times for the "
                 + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
@@ -213,62 +165,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     }
                 }
         );
-        values.put(createMetricName("latency_total_percentile_5", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(5);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_25", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(25);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_50", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(50);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_75", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(75);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_90", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(90);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_99", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(99);
-                    }
-                }
-        );
-        values.put(createMetricName("latency_total_percentile_995", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimePercentile(99.5);
-                    }
-                }
-        );
+        createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_75", 75, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDescription);
+        createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDescription);
 
         if (exportProperties) {
             final String propDesc = "These informational metrics report the "
@@ -276,110 +179,32 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     + "see when a dynamic property takes effect and confirm a property is set as "
                     + "expected.";
 
-            values.put(createMetricName("property_value_rolling_statistical_window_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.metricsRollingStatisticalWindowInMilliseconds().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_circuit_breaker_request_volume_threshold", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerRequestVolumeThreshold().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerSleepWindowInMilliseconds().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_circuit_breaker_error_threshold_percentage", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.circuitBreakerErrorThresholdPercentage().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_circuit_breaker_force_open", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.circuitBreakerForceOpen().get());
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_circuit_breaker_force_closed", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.circuitBreakerForceClosed().get());
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_execution_isolation_thread_timeout_in_milliseconds", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.executionIsolationThreadTimeoutInMilliseconds().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_execution_isolation_strategy", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.executionIsolationStrategy().get().ordinal();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_metrics_rolling_percentile_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.metricsRollingPercentileEnabled().get());
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_request_cache_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.requestCacheEnabled().get());
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_request_log_enabled", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return booleanToNumber(properties.requestLogEnabled().get());
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.executionIsolationSemaphoreMaxConcurrentRequests().get();
-                        }
-                    }
-            );
-            values.put(createMetricName("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc),
-                    new Callable<Number>() {
-                        @Override
-                        public Number call() {
-                            return properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get();
-                        }
-                    }
-            );
+            createIntegerProperty("property_value_rolling_statistical_window_in_milliseconds",
+                    properties.metricsRollingStatisticalWindowInMilliseconds(), propDesc);
+            createIntegerProperty("property_value_circuit_breaker_request_volume_threshold",
+                    properties.circuitBreakerRequestVolumeThreshold(), propDesc);
+            createIntegerProperty("property_value_circuit_breaker_sleep_window_in_milliseconds",
+                    properties.circuitBreakerSleepWindowInMilliseconds(), propDesc);
+            createIntegerProperty("property_value_circuit_breaker_error_threshold_percentage",
+                    properties.circuitBreakerErrorThresholdPercentage(), propDesc);
+            createBooleanProperty("property_value_circuit_breaker_force_open",
+                    properties.circuitBreakerForceOpen(), propDesc);
+            createBooleanProperty("property_value_circuit_breaker_force_closed",
+                    properties.circuitBreakerForceClosed(), propDesc);
+            createIntegerProperty("property_value_execution_isolation_thread_timeout_in_milliseconds",
+                    properties.executionIsolationThreadTimeoutInMilliseconds(), propDesc);
+            createEnumProperty("property_value_execution_isolation_strategy",
+                    properties.executionIsolationStrategy(), propDesc);
+            createBooleanProperty("property_value_metrics_rolling_percentile_enabled",
+                    properties.metricsRollingPercentileEnabled(), propDesc);
+            createBooleanProperty("property_value_request_cache_enabled",
+                    properties.requestCacheEnabled(), propDesc);
+            createBooleanProperty("property_value_request_log_enabled",
+                    properties.requestLogEnabled(), propDesc);
+            createIntegerProperty("property_value_execution_isolation_semaphore_max_concurrent_requests",
+                    properties.executionIsolationSemaphoreMaxConcurrentRequests(), propDesc);
+            createIntegerProperty("property_value_fallback_isolation_semaphore_max_concurrent_requests",
+                    properties.fallbackIsolationSemaphoreMaxConcurrentRequests(), propDesc);
         }
     }
 
@@ -421,6 +246,51 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     }
                 }
         );
+    }
+
+    private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
+        values.put(createMetricName(name, documentation), new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getExecutionTimePercentile(percentile);
+            }
+        });
+    }
+
+    private void createTotalTimePercentile(String name, final double percentile, String documentation) {
+        values.put(createMetricName(name, documentation), new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getTotalTimePercentile(percentile);
+            }
+        });
+    }
+
+    private void createIntegerProperty(String name, final HystrixProperty<Integer> property, String documentation) {
+        values.put(createMetricName(name, documentation), new Callable<Number>() {
+            @Override
+            public Number call() {
+                return property.get();
+            }
+        });
+    }
+
+    private void createBooleanProperty(String name, final HystrixProperty<Boolean> property, String documentation) {
+        values.put(createMetricName(name, documentation), new Callable<Number>() {
+            @Override
+            public Number call() {
+                return booleanToNumber(property.get());
+            }
+        });
+    }
+
+    private void createEnumProperty(String name, final HystrixProperty<? extends Enum> property, String documentation) {
+        values.put(createMetricName(name, documentation), new Callable<Number>() {
+            @Override
+            public Number call() {
+                return property.get().ordinal();
+            }
+        });
     }
 
     private int booleanToNumber(boolean value) {
