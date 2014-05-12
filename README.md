@@ -30,6 +30,7 @@ Optionally, import and register the command execution hook to get metrics about 
 
 ```java
 import com.soundcloud.prometheus.hystrix.HystrixPrometheusCommandExecutionHook;
+...
 HystrixPrometheusCommandExecutionHook.register("application_name");
 ```
 
