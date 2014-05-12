@@ -161,8 +161,8 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
                         .apply()
                         .set(value);
             } catch (Exception e) {
-                logger.warn(String.format("Cannot export %s gauge for %s",
-                        metric.getKey(), poolName), e);
+                logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
+                        metric.getKey(), poolName, e));
             }
         }
     }

@@ -220,8 +220,8 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                         .apply()
                         .set(value);
             } catch (Exception e) {
-                logger.warn(String.format("Cannot export %s gauge for %s %s",
-                        metric.getKey(), commandGroup, commandName), e);
+                logger.warn(String.format("Cannot export %s gauge for %s %s - caused by: %s",
+                        metric.getKey(), commandGroup, commandName, e));
             }
         }
     }
