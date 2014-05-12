@@ -13,41 +13,34 @@
  */
 package com.soundcloud.prometheus.hystrix;
 
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.netflix.hystrix.HystrixCommand;
+import com.netflix.hystrix.exception.HystrixRuntimeException;
 import com.netflix.hystrix.exception.HystrixRuntimeException.FailureType;
 import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHook;
 import io.prometheus.client.metrics.Counter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * <p>Extends the <code>HystrixCommandExecutionHook</code> to count each exception that
  * results in the failure of a <code>HystrixCommand</code>.</p>
- *
- * <p>As an added convenience for debugging purposes this class can optionally log each
- * exception at WARN level, with or without a stacktrace for the exception.</p>
  */
 public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecutionHook {
 
-    private static final String SUBSYSTEM = "hystrix_command";
     private static final String COMMAND_NAME = "command_name";
     private static final String COMMAND_GROUP = "command_group";
     private static final String EXCEPTION_CLASS = "exception_class";
     private static final String FAILURE_TYPE = "failure_type";
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-
-    private final boolean logExceptions;
-    private final boolean logStackTrace;
     private final Counter counter;
+    private final Function<Exception, Exception> handler;
 
-    public HystrixPrometheusCommandExecutionHook(String namespace, boolean logExceptions, boolean logStackTrace) {
-        this.logExceptions = logExceptions;
-        this.logStackTrace = logStackTrace;
+    public HystrixPrometheusCommandExecutionHook(String namespace, Function<Exception, Exception> handler) {
+        this.handler = handler;
         this.counter = Counter.newBuilder()
                 .namespace(namespace)
-                .subsystem(SUBSYSTEM)
+                .subsystem("hystrix_command")
                 .name("execution_error_count")
                 .labelNames(COMMAND_GROUP, COMMAND_NAME, EXCEPTION_CLASS, FAILURE_TYPE)
                 .documentation("Count of exceptions encountered by each command.")
@@ -57,53 +50,54 @@ public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecuti
     @Override
     public <T> Exception onRunError(HystrixCommand<T> commandInstance, Exception e) {
         record(commandInstance, "RUN_ERROR", e);
-        return e;
+        return handler.apply(e);
     }
 
     @Override
     public <T> Exception onFallbackError(HystrixCommand<T> commandInstance, Exception e) {
         record(commandInstance, "FALLBACK_ERROR", e);
-        return e;
+        return handler.apply(e);
     }
 
     @Override
     public <T> Exception onError(HystrixCommand<T> commandInstance, FailureType failureType, Exception e) {
         record(commandInstance, failureType.name(), e);
-        return e;
+        return handler.apply(e);
     }
 
     private void record(HystrixCommand command, String failureType, Exception e) {
-        incrementCounter(command, failureType, e);
-        logError(command, failureType, e);
-    }
-
-    private void incrementCounter(HystrixCommand command, String failureType, Exception e) {
         counter.newPartial()
                 .labelPair(COMMAND_GROUP, command.getCommandGroup().name())
                 .labelPair(COMMAND_NAME, command.getCommandKey().name())
-                .labelPair(EXCEPTION_CLASS, e.getClass().getName())
+                .labelPair(EXCEPTION_CLASS, exceptionClass(e))
                 .labelPair(FAILURE_TYPE, failureType)
                 .apply()
                 .increment();
     }
 
-    private void logError(HystrixCommand command, String failureType, Exception e) {
-        if (logExceptions && logger.isWarnEnabled()) {
-            if (logStackTrace) {
-                logger.warn(String.format("%s in %s", failureType, command.getCommandKey().name()), e);
-            } else {
-                logger.warn(String.format("%s in %s - caused by: %s", failureType, command.getCommandKey().name(), e));
-            }
+    private String exceptionClass(Exception e) {
+        if (e instanceof HystrixRuntimeException && e.getCause() != null) {
+            // want to track causes as much as possible, not exception wrappers
+            return e.getCause().getClass().getName();
         }
+        return e.getClass().getName();
     }
 
     /**
      * Register an instance of this excecution hook for the given namespace with the
-     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The execution
-     * hook registered by this method will NOT log any exceptions.
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton.
      */
     public static void register(String namespace) {
+        register(namespace, Functions.<Exception>identity());
+    }
+
+    /**
+     * Register an instance of this excecution hook for the given namespace with the
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton and allow additional
+     * processing of the exception by the handler function (for example, exception logging).
+     */
+    public static void register(String namespace, Function<Exception, Exception> handler) {
         HystrixPlugins.getInstance().registerCommandExecutionHook(
-                new HystrixPrometheusCommandExecutionHook(namespace, false, false));
+                new HystrixPrometheusCommandExecutionHook(namespace, handler));
     }
 }
