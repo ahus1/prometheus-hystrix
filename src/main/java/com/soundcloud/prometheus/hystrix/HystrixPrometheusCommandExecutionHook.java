@@ -13,8 +13,6 @@
  */
 package com.soundcloud.prometheus.hystrix;
 
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
 import com.netflix.hystrix.exception.HystrixRuntimeException.FailureType;
@@ -23,10 +21,10 @@ import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHook;
 import io.prometheus.client.metrics.Counter;
 
 /**
- * <p>Extends the <code>HystrixCommandExecutionHook</code> to count each exception that
- * results in the failure of a <code>HystrixCommand</code>.</p>
+ * Decorates a <code>HystrixCommandExecutionHook</code> to count each exception that
+ * results in the failure of a <code>HystrixCommand</code>.
  */
-public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecutionHook {
+public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecutionHookDecorator {
 
     private static final String COMMAND_NAME = "command_name";
     private static final String COMMAND_GROUP = "command_group";
@@ -34,10 +32,9 @@ public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecuti
     private static final String FAILURE_TYPE = "failure_type";
 
     private final Counter counter;
-    private final Function<Exception, Exception> handler;
 
-    public HystrixPrometheusCommandExecutionHook(String namespace, Function<Exception, Exception> handler) {
-        this.handler = handler;
+    public HystrixPrometheusCommandExecutionHook(String namespace, HystrixCommandExecutionHook delegate) {
+        super(delegate);
         this.counter = Counter.newBuilder()
                 .namespace(namespace)
                 .subsystem("hystrix_command")
@@ -50,19 +47,19 @@ public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecuti
     @Override
     public <T> Exception onRunError(HystrixCommand<T> commandInstance, Exception e) {
         record(commandInstance, "RUN_ERROR", e);
-        return handler.apply(e);
+        return super.onRunError(commandInstance, e);
     }
 
     @Override
     public <T> Exception onFallbackError(HystrixCommand<T> commandInstance, Exception e) {
         record(commandInstance, "FALLBACK_ERROR", e);
-        return handler.apply(e);
+        return super.onFallbackError(commandInstance, e);
     }
 
     @Override
     public <T> Exception onError(HystrixCommand<T> commandInstance, FailureType failureType, Exception e) {
         record(commandInstance, failureType.name(), e);
-        return handler.apply(e);
+        return super.onError(commandInstance, failureType, e);
     }
 
     private void record(HystrixCommand command, String failureType, Exception e) {
@@ -88,16 +85,16 @@ public class HystrixPrometheusCommandExecutionHook extends HystrixCommandExecuti
      * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton.
      */
     public static void register(String namespace) {
-        register(namespace, Functions.<Exception>identity());
+        register(namespace, null);
     }
 
     /**
      * Register an instance of this excecution hook for the given namespace with the
-     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton and allow additional
-     * processing of the exception by the handler function (for example, exception logging).
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton and set a
+     * delegate <code>HystrixCommandExecutionHook</code> to decorate.
      */
-    public static void register(String namespace, Function<Exception, Exception> handler) {
+    public static void register(String namespace, HystrixCommandExecutionHook delegate) {
         HystrixPlugins.getInstance().registerCommandExecutionHook(
-                new HystrixPrometheusCommandExecutionHook(namespace, handler));
+                new HystrixPrometheusCommandExecutionHook(namespace, delegate));
     }
 }
