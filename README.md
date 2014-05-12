@@ -26,6 +26,13 @@ Register the metrics publisher for your application's namespace with hystrix.
 HystrixPrometheusMetricsPublisher.register("application_name");
 ```
 
+Optionally, import and register the command execution hook to get metrics about command exceptions.
+
+```java
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusCommandExecutionHook;
+HystrixPrometheusCommandExecutionHook.register("application_name");
+```
+
 ## DEVELOPMENT
 
 Run `./gradlew` to compile, test and create POM & JARs.
