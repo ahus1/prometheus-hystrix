@@ -7,9 +7,7 @@ See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/M
 
 ## USAGE
 
-Import the metrics publisher.
-
-Register the metrics publisher for your application's namespace with hystrix.
+Register the metrics publisher for your application's namespace and the default Prometheus CollectorRegistry with Hystrix.
 
 ```java
 import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
@@ -19,7 +17,7 @@ import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
 Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name");
 ```
 
-or
+Register the publisher for your application's namespace with your own Prometheus CollectorRegistry with Hystrix.
 
 ```java
 import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
@@ -27,7 +25,8 @@ import io.prometheus.client.CollectorRegistry;
 
 // ...
 
-Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name", new CollectorRegistry());
+CollectorRegistry registry = // ...
+Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name", registry);
 ```
 
 Trigger the publisher to export metrics into Prometheus.
