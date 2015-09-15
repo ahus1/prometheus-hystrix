@@ -1,7 +1,7 @@
 # prometheus-hystrix-metrics-publisher
 
 This is an implementation of a [HystrixMetricsPublisher](http://netflix.github.com/Hystrix/javadoc/index.html?com/netflix/hystrix/strategy/metrics/HystrixMetricsPublisher.html)
-that publishes metrics using the [Prometheus](https://github.com/prometheus/client_java) java client.
+that publishes metrics using the Prometheus' [SimpleClient](https://github.com/prometheus/client_java).
 
 See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring) Wiki for more information.
 
