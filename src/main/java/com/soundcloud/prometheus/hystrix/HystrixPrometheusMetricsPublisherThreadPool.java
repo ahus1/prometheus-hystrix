@@ -2,9 +2,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p/>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,9 +18,8 @@ import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
-import io.prometheus.client.Prometheus;
-import io.prometheus.client.Prometheus.ExpositionHook;
-import io.prometheus.client.metrics.Gauge;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherThreadPool} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
- *
+ * <p/>
  * <p>This class is based on the <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherThreadPool.java">HystrixCodaHaleMetricsPublisherThreadPool</a>.</p>
- *
+ * <p/>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#threadpool-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
-public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool, ExpositionHook {
+public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool, Runnable {
 
     private static final String SUBSYSTEM = "hystrix_thread_pool";
     private static final String POOL_NAME = "pool_name";
@@ -49,6 +48,8 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String namespace;
+    private final CollectorRegistry registry;
+
     private final String poolName;
     private final boolean exportProperties;
 
@@ -56,9 +57,11 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     private final HystrixThreadPoolProperties properties;
 
     public HystrixPrometheusMetricsPublisherThreadPool(
-            String namespace, HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
+            String namespace, CollectorRegistry registry,
+            HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
             HystrixThreadPoolProperties properties, boolean exportProperties) {
 
+        this.registry = registry;
         this.namespace = namespace;
         this.poolName = key.name();
         this.exportProperties = exportProperties;
@@ -69,8 +72,6 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
     @Override
     public void initialize() {
-        Prometheus.defaultAddPreexpositionHook(this);
-
         final String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
 
         values.put(createMetricName("thread_active_count", currentStateDoc),
@@ -150,16 +151,15 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         }
     }
 
+    /**
+     * Export current hystrix metrix into Prometheus.
+     */
     @Override
     public void run() {
         for (Entry<String, Callable<Number>> metric : values.entrySet()) {
             try {
                 double value = metric.getValue().call().doubleValue();
-                gauges.get(metric.getKey())
-                        .newPartial()
-                        .labelPair(POOL_NAME, poolName)
-                        .apply()
-                        .set(value);
+                gauges.get(metric.getKey()).labels(poolName).set(value);
             } catch (Exception e) {
                 logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
                         metric.getKey(), poolName, e));
@@ -191,18 +191,17 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
      * in a thread-safe manner, this method will still be called more than once for each metric across
      * multiple threads so we should ensure that the gauge is only registered once.
      */
-    private static void registerGauge(String metricName, String namespace, String metric, String documentation) {
-        Gauge gauge = Gauge.newBuilder()
+    private void registerGauge(String metricName, String namespace, String metric, String documentation) {
+        Gauge gauge = Gauge.build()
                 .namespace(namespace)
                 .subsystem(SUBSYSTEM)
                 .name(metric)
+                .help(documentation)
                 .labelNames(POOL_NAME)
-                .documentation(documentation)
-                .registerStatic(false)
-                .build();
+                .create();
         Gauge existing = gauges.putIfAbsent(metricName, gauge);
         if (existing == null) {
-            Prometheus.defaultRegister(gauge);
+            registry.register(gauge);
         }
     }
 }

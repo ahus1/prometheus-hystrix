@@ -2,9 +2,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p/>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,9 +21,8 @@ import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import io.prometheus.client.Prometheus;
-import io.prometheus.client.Prometheus.ExpositionHook;
-import io.prometheus.client.metrics.Gauge;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +34,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherCommand} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
- *
+ * <p/>
  * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherCommand.java">HystrixCodaHaleMetricsPublisherCommand</a>.</p>
- *
+ * <p/>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#command-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
-public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, ExpositionHook {
+public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, Runnable {
 
     private static final String SUBSYSTEM = "hystrix_command";
     private static final String COMMAND_NAME = "command_name";
@@ -53,6 +52,8 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String namespace;
+    private final CollectorRegistry registry;
+
     private final String commandName;
     private final String commandGroup;
     private final boolean exportProperties;
@@ -62,10 +63,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final HystrixCommandProperties properties;
 
     public HystrixPrometheusMetricsPublisherCommand(
-            String namespace, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
+            String namespace, CollectorRegistry registry,
+            HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
+        this.registry = registry;
         this.namespace = namespace;
         this.commandName = commandKey.name();
         this.commandGroup = (commandGroupKey != null) ? commandGroupKey.name() : "default";
@@ -78,8 +81,6 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     @Override
     public void initialize() {
-        Prometheus.defaultAddPreexpositionHook(this);
-
         values.put(createMetricName("is_circuit_breaker_open", "Current status of circuit breaker: 1 = open, 0 = closed."),
                 new Callable<Number>() {
                     @Override
@@ -191,8 +192,8 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     properties.circuitBreakerForceOpen(), propDesc);
             createBooleanProperty("property_value_circuit_breaker_force_closed",
                     properties.circuitBreakerForceClosed(), propDesc);
-            createIntegerProperty("property_value_execution_isolation_thread_timeout_in_milliseconds",
-                    properties.executionIsolationThreadTimeoutInMilliseconds(), propDesc);
+            createIntegerProperty("property_value_execution_timeout_in_milliseconds",
+                    properties.executionTimeoutInMilliseconds(), propDesc);
             createEnumProperty("property_value_execution_isolation_strategy",
                     properties.executionIsolationStrategy(), propDesc);
             createBooleanProperty("property_value_metrics_rolling_percentile_enabled",
@@ -208,17 +209,15 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         }
     }
 
+    /**
+     * Export current hystrix metrix into Prometheus.
+     */
     @Override
     public void run() {
         for (Entry<String, Callable<Number>> metric : values.entrySet()) {
             try {
                 double value = metric.getValue().call().doubleValue();
-                gauges.get(metric.getKey())
-                        .newPartial()
-                        .labelPair(COMMAND_GROUP, commandGroup)
-                        .labelPair(COMMAND_NAME, commandName)
-                        .apply()
-                        .set(value);
+                gauges.get(metric.getKey()).labels(commandGroup, commandName).set(value);
             } catch (Exception e) {
                 logger.warn(String.format("Cannot export %s gauge for %s %s - caused by: %s",
                         metric.getKey(), commandGroup, commandName, e));
@@ -310,18 +309,17 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
      * thread-safe manner, this method will still be called more than once for each metric across multiple
      * threads so we should ensure that the gauge is only registered once.
      */
-    private static void registerGauge(String metricName, String namespace, String metric, String documentation) {
-        Gauge gauge = Gauge.newBuilder()
+    private void registerGauge(String metricName, String namespace, String metric, String documentation) {
+        Gauge gauge = Gauge.build()
                 .namespace(namespace)
                 .subsystem(SUBSYSTEM)
                 .name(metric)
+                .help(documentation)
                 .labelNames(COMMAND_GROUP, COMMAND_NAME)
-                .documentation(documentation)
-                .registerStatic(false)
-                .build();
+                .create();
         Gauge existing = gauges.putIfAbsent(metricName, gauge);
         if (existing == null) {
-            Prometheus.defaultRegister(gauge);
+            registry.register(gauge);
         }
     }
 }

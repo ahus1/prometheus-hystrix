@@ -7,31 +7,33 @@ See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/M
 
 ## USAGE
 
-Import the metrics publisher and prometheus.
-
-```java
-import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
-import io.prometheus.client.Prometheus;
-```
-
-Initialise prometheus client so that it can collect metrics.
-
-```java
-Prometheus.defaultInitialize();
-```
+Import the metrics publisher.
 
 Register the metrics publisher for your application's namespace with hystrix.
 
 ```java
-HystrixPrometheusMetricsPublisher.register("application_name");
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
+
+// ...
+
+Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name");
 ```
 
-Optionally, import and register the command execution hook to get metrics about command exceptions.
+or
 
 ```java
-import com.soundcloud.prometheus.hystrix.HystrixPrometheusCommandExecutionHook;
-...
-HystrixPrometheusCommandExecutionHook.register("application_name");
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
+import io.prometheus.client.CollectorRegistry;
+
+// ...
+
+Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name", new CollectorRegistry());
+```
+
+Trigger the publisher to export metrics into Prometheus.
+
+```java
+publisher.run();
 ```
 
 ## DEVELOPMENT
