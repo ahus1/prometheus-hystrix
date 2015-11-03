@@ -18,6 +18,7 @@ import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
+import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
@@ -31,9 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherThreadPool} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
- * <p/>
  * <p>This class is based on the <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherThreadPool.java">HystrixCodaHaleMetricsPublisherThreadPool</a>.</p>
- * <p/>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#threadpool-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool, Runnable {
@@ -125,6 +124,16 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
                     }
                 }
         );
+
+        values.put(createMetricName("rolling_count_commands_rejected", rollingCountDoc),
+                new Callable<Number>() {
+                    @Override
+                    public Number call() {
+                        return metrics.getRollingCount(HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
+                    }
+                }
+        );
+
         values.put(createMetricName("rolling_count_threads_executed", rollingCountDoc),
                 new Callable<Number>() {
                     @Override
@@ -180,7 +189,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
     private String createMetricName(String metric, String documentation) {
         String metricName = String.format("%s,%s,%s", namespace, SUBSYSTEM, metric);
-        registerGauge(metricName, namespace, metric, documentation);
+        registerGauge(metricName, metric, documentation);
         return metricName;
     }
 
@@ -191,7 +200,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
      * in a thread-safe manner, this method will still be called more than once for each metric across
      * multiple threads so we should ensure that the gauge is only registered once.
      */
-    private void registerGauge(String metricName, String namespace, String metric, String documentation) {
+    private void registerGauge(String metricName, String metric, String documentation) {
         Gauge gauge = Gauge.build()
                 .namespace(namespace)
                 .subsystem(SUBSYSTEM)

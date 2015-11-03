@@ -34,9 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherCommand} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
- * <p/>
  * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherCommand.java">HystrixCodaHaleMetricsPublisherCommand</a>.</p>
- * <p/>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#command-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, Runnable {
@@ -106,9 +104,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                 }
         );
 
+        createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
         createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
+        createCumulativeCountForEvent("count_emit", HystrixRollingNumberEvent.EMIT);
         createCumulativeCountForEvent("count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
         createCumulativeCountForEvent("count_failure", HystrixRollingNumberEvent.FAILURE);
+        createCumulativeCountForEvent("count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
         createCumulativeCountForEvent("count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
         createCumulativeCountForEvent("count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
         createCumulativeCountForEvent("count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
@@ -119,9 +120,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         createCumulativeCountForEvent("count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
         createCumulativeCountForEvent("count_timeout", HystrixRollingNumberEvent.TIMEOUT);
 
+        createRollingCountForEvent("rolling_count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
         createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
+        createRollingCountForEvent("rolling_count_emit", HystrixRollingNumberEvent.EMIT);
         createRollingCountForEvent("rolling_count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
         createRollingCountForEvent("rolling_count_failure", HystrixRollingNumberEvent.FAILURE);
+        createRollingCountForEvent("rolling_count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
         createRollingCountForEvent("rolling_count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
         createRollingCountForEvent("rolling_count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
         createRollingCountForEvent("rolling_count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
@@ -298,7 +302,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private String createMetricName(String metric, String documentation) {
         String metricName = String.format("%s,%s,%s", namespace, SUBSYSTEM, metric);
-        registerGauge(metricName, namespace, metric, documentation);
+        registerGauge(metricName, metric, documentation);
         return metricName;
     }
 
@@ -309,7 +313,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
      * thread-safe manner, this method will still be called more than once for each metric across multiple
      * threads so we should ensure that the gauge is only registered once.
      */
-    private void registerGauge(String metricName, String namespace, String metric, String documentation) {
+    private void registerGauge(String metricName, String metric, String documentation) {
         Gauge gauge = Gauge.build()
                 .namespace(namespace)
                 .subsystem(SUBSYSTEM)

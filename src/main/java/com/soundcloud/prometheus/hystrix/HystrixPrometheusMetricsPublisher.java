@@ -14,6 +14,9 @@
 package com.soundcloud.prometheus.hystrix;
 
 import com.netflix.hystrix.HystrixCircuitBreaker;
+import com.netflix.hystrix.HystrixCollapserKey;
+import com.netflix.hystrix.HystrixCollapserMetrics;
+import com.netflix.hystrix.HystrixCollapserProperties;
 import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
@@ -23,6 +26,7 @@ import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisher;
+import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import io.prometheus.client.CollectorRegistry;
@@ -32,9 +36,7 @@ import java.util.List;
 
 /**
  * <p><a href="https://github.com/prometheus/client_java">Prometheus Java Client</a> implementation of {@link HystrixMetricsPublisher}.</p>
- * <p/>
  * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisher.java">HystrixCodaHaleMetricsPublisher</a>.</p>
- * <p/>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher implements Runnable {
@@ -71,6 +73,18 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
 
         HystrixPrometheusMetricsPublisherThreadPool publisher = new HystrixPrometheusMetricsPublisherThreadPool(
                 namespace, registry, threadPoolKey, metrics, properties, exportProperties);
+
+        publishers.add(publisher);
+        return publisher;
+    }
+
+    @Override
+    public HystrixMetricsPublisherCollapser getMetricsPublisherForCollapser(
+            HystrixCollapserKey collapserKey, HystrixCollapserMetrics metrics,
+            HystrixCollapserProperties properties) {
+
+        HystrixPrometheusMetricsPublisherCollapser publisher = new HystrixPrometheusMetricsPublisherCollapser(
+                namespace, registry, collapserKey, metrics, properties, exportProperties);
 
         publishers.add(publisher);
         return publisher;
