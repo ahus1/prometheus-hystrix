@@ -123,6 +123,10 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         }
     }
 
+    private String createMetricName(String metric, String documentation) {
+        return registry.registerGauge("hystrix_collapser", metric, documentation, "collapser_name");
+    }
+
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         values.put(createMetricName(name, "These are cumulative counts since the start of the application."),
                 new Callable<Number>() {
@@ -170,8 +174,7 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
                     public Number call() {
                         return property.get();
                     }
-                }
-        );
+                });
     }
 
     private void createBooleanProperty(String name, final HystrixProperty<Boolean> property) {
@@ -182,9 +185,5 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
                         return property.get() ? 1 : 0;
                     }
                 });
-    }
-
-    private String createMetricName(String metric, String documentation) {
-        return registry.registerGauge("hystrix_collapser", metric, documentation, "collapser_name");
     }
 }

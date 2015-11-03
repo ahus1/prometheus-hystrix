@@ -216,6 +216,10 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         }
     }
 
+    private String createMetricName(String metric, String documentation) {
+        return registry.registerGauge("hystrix_command", metric, documentation, "command_group", "command_name");
+    }
+
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         values.put(createMetricName(name, "These are cumulative counts since the start of the application."),
                 new Callable<Number>() {
@@ -223,8 +227,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     public Number call() {
                         return metrics.getCumulativeCount(event);
                     }
-                }
-        );
+                });
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
@@ -234,8 +237,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     public Number call() {
                         return metrics.getRollingCount(event);
                     }
-                }
-        );
+                });
     }
 
     private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
@@ -285,9 +287,5 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private int booleanToNumber(boolean value) {
         return value ? 1 : 0;
-    }
-
-    private String createMetricName(String metric, String documentation) {
-        return registry.registerGauge("hystrix_command", metric, documentation, "command_group", "command_name");
     }
 }

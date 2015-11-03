@@ -164,6 +164,10 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         }
     }
 
+    private String createMetricName(String metric, String documentation) {
+        return registry.registerGauge("hystrix_thread_pool", metric, documentation, "pool_name");
+    }
+
     private void createIntegerProperty(String name, final HystrixProperty<Integer> property) {
         values.put(createMetricName(name, "Configuration property partitioned by pool_name."),
                 new Callable<Number>() {
@@ -173,9 +177,5 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
                     }
                 }
         );
-    }
-
-    private String createMetricName(String metric, String documentation) {
-        return registry.registerGauge("hystrix_thread_pool", metric, documentation, "pool_name");
     }
 }
