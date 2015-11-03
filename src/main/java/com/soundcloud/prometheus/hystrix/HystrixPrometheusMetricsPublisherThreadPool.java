@@ -19,8 +19,6 @@ import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherThreadPool} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
@@ -37,35 +34,26 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool, Runnable {
 
-    private static final String SUBSYSTEM = "hystrix_thread_pool";
-    private static final String POOL_NAME = "pool_name";
-
-    private static final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
-
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final String namespace;
-    private final CollectorRegistry registry;
-
     private final String poolName;
     private final boolean exportProperties;
 
+    private final GaugeRegistry registry;
     private final HystrixThreadPoolMetrics metrics;
     private final HystrixThreadPoolProperties properties;
 
     public HystrixPrometheusMetricsPublisherThreadPool(
-            String namespace, CollectorRegistry registry,
-            HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
+            GaugeRegistry registry, HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
             HystrixThreadPoolProperties properties, boolean exportProperties) {
 
-        this.registry = registry;
-        this.namespace = namespace;
         this.poolName = key.name();
         this.exportProperties = exportProperties;
 
         this.metrics = metrics;
+        this.registry = registry;
         this.properties = properties;
     }
 
@@ -168,7 +156,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         for (Entry<String, Callable<Number>> metric : values.entrySet()) {
             try {
                 double value = metric.getValue().call().doubleValue();
-                gauges.get(metric.getKey()).labels(poolName).set(value);
+                registry.getGauge(metric.getKey()).labels(poolName).set(value);
             } catch (Exception e) {
                 logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
                         metric.getKey(), poolName, e));
@@ -188,29 +176,6 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     }
 
     private String createMetricName(String metric, String documentation) {
-        String metricName = String.format("%s,%s,%s", namespace, SUBSYSTEM, metric);
-        registerGauge(metricName, metric, documentation);
-        return metricName;
-    }
-
-    /**
-     * An instance of this class is created for each Hystrix thread-pool but our gauges are configured for
-     * each metric within a given namespace. Although the {@link #initialize()} method is only called once
-     * for each thread-pool by {@link com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherFactory}
-     * in a thread-safe manner, this method will still be called more than once for each metric across
-     * multiple threads so we should ensure that the gauge is only registered once.
-     */
-    private void registerGauge(String metricName, String metric, String documentation) {
-        Gauge gauge = Gauge.build()
-                .namespace(namespace)
-                .subsystem(SUBSYSTEM)
-                .name(metric)
-                .help(documentation)
-                .labelNames(POOL_NAME)
-                .create();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
-        if (existing == null) {
-            registry.register(gauge);
-        }
+        return registry.registerGauge("hystrix_thread_pool", metric, documentation, "pool_name");
     }
 }

@@ -41,16 +41,14 @@ import java.util.List;
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher implements Runnable {
 
-    private final String namespace;
-    private final CollectorRegistry registry;
+    private final GaugeRegistry registry;
     private final boolean exportProperties;
     private final List<Runnable> publishers;
 
     public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties) {
+        this.registry = new GaugeRegistry(registry, namespace);
         this.publishers = new ArrayList<Runnable>();
         this.exportProperties = exportProperties;
-        this.namespace = namespace;
-        this.registry = registry;
     }
 
     @Override
@@ -60,7 +58,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixCommandProperties properties) {
 
         HystrixPrometheusMetricsPublisherCommand publisher = new HystrixPrometheusMetricsPublisherCommand(
-                namespace, registry, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties);
+                registry, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties);
 
         publishers.add(publisher);
         return publisher;
@@ -72,7 +70,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixThreadPoolProperties properties) {
 
         HystrixPrometheusMetricsPublisherThreadPool publisher = new HystrixPrometheusMetricsPublisherThreadPool(
-                namespace, registry, threadPoolKey, metrics, properties, exportProperties);
+                registry, threadPoolKey, metrics, properties, exportProperties);
 
         publishers.add(publisher);
         return publisher;
@@ -84,7 +82,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixCollapserProperties properties) {
 
         HystrixPrometheusMetricsPublisherCollapser publisher = new HystrixPrometheusMetricsPublisherCollapser(
-                namespace, registry, collapserKey, metrics, properties, exportProperties);
+                registry, collapserKey, metrics, properties, exportProperties);
 
         publishers.add(publisher);
         return publisher;

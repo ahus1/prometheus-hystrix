@@ -21,8 +21,6 @@ import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>Implementation of {@link HystrixMetricsPublisherCommand} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
@@ -39,41 +36,31 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, Runnable {
 
-    private static final String SUBSYSTEM = "hystrix_command";
-    private static final String COMMAND_NAME = "command_name";
-    private static final String COMMAND_GROUP = "command_group";
-
-    private static final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
-
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
-
-    private final String namespace;
-    private final CollectorRegistry registry;
 
     private final String commandName;
     private final String commandGroup;
     private final boolean exportProperties;
 
+    private final GaugeRegistry registry;
     private final HystrixCommandMetrics metrics;
     private final HystrixCircuitBreaker circuitBreaker;
     private final HystrixCommandProperties properties;
 
     public HystrixPrometheusMetricsPublisherCommand(
-            String namespace, CollectorRegistry registry,
-            HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
+            GaugeRegistry registry, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
-        this.registry = registry;
-        this.namespace = namespace;
         this.commandName = commandKey.name();
         this.commandGroup = (commandGroupKey != null) ? commandGroupKey.name() : "default";
         this.exportProperties = exportProperties;
 
         this.circuitBreaker = circuitBreaker;
         this.properties = properties;
+        this.registry = registry;
         this.metrics = metrics;
     }
 
@@ -221,7 +208,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         for (Entry<String, Callable<Number>> metric : values.entrySet()) {
             try {
                 double value = metric.getValue().call().doubleValue();
-                gauges.get(metric.getKey()).labels(commandGroup, commandName).set(value);
+                registry.getGauge(metric.getKey()).labels(commandGroup, commandName).set(value);
             } catch (Exception e) {
                 logger.warn(String.format("Cannot export %s gauge for %s %s - caused by: %s",
                         metric.getKey(), commandGroup, commandName, e));
@@ -301,29 +288,6 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private String createMetricName(String metric, String documentation) {
-        String metricName = String.format("%s,%s,%s", namespace, SUBSYSTEM, metric);
-        registerGauge(metricName, metric, documentation);
-        return metricName;
-    }
-
-    /**
-     * An instance of this class is created for each Hystrix command but our gauges are configured for
-     * each metric within a given namespace. Although the {@link #initialize()} method is only called once
-     * for each command by {@link com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherFactory} in a
-     * thread-safe manner, this method will still be called more than once for each metric across multiple
-     * threads so we should ensure that the gauge is only registered once.
-     */
-    private void registerGauge(String metricName, String metric, String documentation) {
-        Gauge gauge = Gauge.build()
-                .namespace(namespace)
-                .subsystem(SUBSYSTEM)
-                .name(metric)
-                .help(documentation)
-                .labelNames(COMMAND_GROUP, COMMAND_NAME)
-                .create();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
-        if (existing == null) {
-            registry.register(gauge);
-        }
+        return registry.registerGauge("hystrix_command", metric, documentation, "command_group", "command_name");
     }
 }

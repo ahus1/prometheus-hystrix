@@ -19,48 +19,37 @@ import com.netflix.hystrix.HystrixCollapserProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implementation of {@link HystrixMetricsPublisherCollapser} using Prometheus Metrics.
  */
 public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser, Runnable {
 
-    private static final String SUBSYSTEM = "hystrix_collapser";
-    private static final String COLLAPSER_NAME = "collapser_name";
-
-    private static final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
-
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final String namespace;
-    private final CollectorRegistry registry;
-
     private final String collapserName;
     private final boolean exportProperties;
 
+    private final GaugeRegistry registry;
     private final HystrixCollapserMetrics metrics;
     private final HystrixCollapserProperties properties;
 
     public HystrixPrometheusMetricsPublisherCollapser(
-            String namespace, CollectorRegistry registry, HystrixCollapserKey key, HystrixCollapserMetrics metrics,
+            GaugeRegistry registry, HystrixCollapserKey key, HystrixCollapserMetrics metrics,
             HystrixCollapserProperties properties, boolean exportProperties) {
 
-        this.namespace = namespace;
-        this.collapserName = key.name();
-        this.registry = registry;
         this.metrics = metrics;
+        this.registry = registry;
         this.properties = properties;
+        this.collapserName = key.name();
         this.exportProperties = exportProperties;
     }
 
@@ -126,7 +115,7 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         for (Map.Entry<String, Callable<Number>> metric : values.entrySet()) {
             try {
                 double value = metric.getValue().call().doubleValue();
-                gauges.get(metric.getKey()).labels(collapserName).set(value);
+                registry.getGauge(metric.getKey()).labels(collapserName).set(value);
             } catch (Exception e) {
                 logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
                         metric.getKey(), collapserName, e));
@@ -196,29 +185,6 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
     }
 
     private String createMetricName(String metric, String documentation) {
-        String metricName = String.format("%s,%s,%s", namespace, SUBSYSTEM, metric);
-        registerGauge(metricName, metric, documentation);
-        return metricName;
-    }
-
-    /**
-     * An instance of this class is created for each Hystrix collapser but our gauges are configured for
-     * each metric within a given namespace. Although the {@link #initialize()} method is only called once
-     * for each collapser by {@link com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherFactory}
-     * in a thread-safe manner, this method will still be called more than once for each metric across
-     * multiple threads so we should ensure that the gauge is only registered once.
-     */
-    private void registerGauge(String metricName, String metric, String documentation) {
-        Gauge gauge = Gauge.build()
-                .namespace(namespace)
-                .subsystem(SUBSYSTEM)
-                .name(metric)
-                .help(documentation)
-                .labelNames(COLLAPSER_NAME)
-                .create();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
-        if (existing == null) {
-            registry.register(gauge);
-        }
+        return registry.registerGauge("hystrix_collapser", metric, documentation, "collapser_name");
     }
 }
