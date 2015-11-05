@@ -21,12 +21,9 @@ import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
 /**
@@ -37,8 +34,6 @@ import java.util.concurrent.Callable;
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, Runnable {
 
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String commandName;
     private final String commandGroup;
@@ -205,15 +200,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
      */
     @Override
     public void run() {
-        for (Entry<String, Callable<Number>> metric : values.entrySet()) {
-            try {
-                double value = metric.getValue().call().doubleValue();
-                registry.getGauge(metric.getKey()).labels(commandGroup, commandName).set(value);
-            } catch (Exception e) {
-                logger.warn(String.format("Cannot export %s gauge for %s %s - caused by: %s",
-                        metric.getKey(), commandGroup, commandName, e));
-            }
-        }
+        registry.recordMetrics(values, commandGroup, commandName);
     }
 
     private String createMetricName(String metric, String documentation) {

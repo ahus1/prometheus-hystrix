@@ -19,12 +19,9 @@ import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
 /**
@@ -35,8 +32,6 @@ import java.util.concurrent.Callable;
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool, Runnable {
 
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String poolName;
     private final boolean exportProperties;
@@ -153,15 +148,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
      */
     @Override
     public void run() {
-        for (Entry<String, Callable<Number>> metric : values.entrySet()) {
-            try {
-                double value = metric.getValue().call().doubleValue();
-                registry.getGauge(metric.getKey()).labels(poolName).set(value);
-            } catch (Exception e) {
-                logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
-                        metric.getKey(), poolName, e));
-            }
-        }
+        registry.recordMetrics(values, poolName);
     }
 
     private String createMetricName(String metric, String documentation) {

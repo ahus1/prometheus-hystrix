@@ -15,10 +15,17 @@ package com.soundcloud.prometheus.hystrix;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GaugeRegistry {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final ConcurrentHashMap<String, Gauge> gauges = new ConcurrentHashMap<String, Gauge>();
 
@@ -52,11 +59,29 @@ public class GaugeRegistry {
     }
 
     /**
-     * Returns a Gauge for the given metricName.
+     * Returns a previously-registered Gauge for the given metricName.
      *
      * @see #registerGauge(String, String, String, String...)
      */
     public Gauge getGauge(String metricName) {
         return gauges.get(metricName);
+    }
+
+    /**
+     * Given a map of metricName to metric mappings, and the label values to apply to each metric,
+     * fetch the current value of each metric and record it in it's corresponding gauge.
+     *
+     * @see #registerGauge(String, String, String, String...)
+     */
+    public void recordMetrics(Map<String, Callable<Number>> metrics, String... labelValues) {
+        for (Map.Entry<String, Callable<Number>> metric : metrics.entrySet()) {
+            try {
+                double value = metric.getValue().call().doubleValue();
+                getGauge(metric.getKey()).labels(labelValues).set(value);
+            } catch (Exception e) {
+                logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
+                        metric.getKey(), StringUtils.join(labelValues, " & "), e), e);
+            }
+        }
     }
 }

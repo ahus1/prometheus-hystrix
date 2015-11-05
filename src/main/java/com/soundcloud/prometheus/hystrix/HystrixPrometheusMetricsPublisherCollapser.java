@@ -19,8 +19,6 @@ import com.netflix.hystrix.HystrixCollapserProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,8 +30,6 @@ import java.util.concurrent.Callable;
 public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser, Runnable {
 
     private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
-
-    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String collapserName;
     private final boolean exportProperties;
@@ -112,15 +108,7 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
      */
     @Override
     public void run() {
-        for (Map.Entry<String, Callable<Number>> metric : values.entrySet()) {
-            try {
-                double value = metric.getValue().call().doubleValue();
-                registry.getGauge(metric.getKey()).labels(collapserName).set(value);
-            } catch (Exception e) {
-                logger.warn(String.format("Cannot export %s gauge for %s - caused by: %s",
-                        metric.getKey(), collapserName, e));
-            }
-        }
+        registry.recordMetrics(values, collapserName);
     }
 
     private String createMetricName(String metric, String documentation) {
