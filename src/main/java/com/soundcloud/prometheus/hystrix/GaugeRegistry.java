@@ -51,8 +51,7 @@ public class GaugeRegistry {
                 .help(documentation)
                 .labelNames(labelNames)
                 .create();
-        Gauge existing = gauges.putIfAbsent(metricName, gauge);
-        if (existing == null) {
+        if (gauges.putIfAbsent(metricName, gauge) == null) {
             registry.register(gauge);
         }
         return metricName;
