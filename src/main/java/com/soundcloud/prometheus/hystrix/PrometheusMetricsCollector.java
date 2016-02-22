@@ -14,7 +14,6 @@
 package com.soundcloud.prometheus.hystrix;
 
 import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +35,8 @@ public class PrometheusMetricsCollector extends Collector {
 
     private final String namespace;
 
-    public PrometheusMetricsCollector(String namespace, CollectorRegistry registry) {
+    public PrometheusMetricsCollector(String namespace) {
         this.namespace = namespace;
-        register(registry);
     }
 
     public void addGauge(String subsystem, String metric, String documentation,

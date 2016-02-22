@@ -42,7 +42,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     private final boolean exportProperties;
 
     public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties) {
-        this.collector = new PrometheusMetricsCollector(namespace, registry);
+        this.collector = new PrometheusMetricsCollector(namespace).register(registry);
         this.exportProperties = exportProperties;
     }
 
