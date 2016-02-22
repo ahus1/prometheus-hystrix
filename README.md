@@ -14,7 +14,7 @@ import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
 
 // ...
 
-Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name");
+HystrixPrometheusMetricsPublisher.register("application_name");
 ```
 
 Register the publisher for your application's namespace with your own Prometheus CollectorRegistry with Hystrix.
@@ -26,13 +26,7 @@ import io.prometheus.client.CollectorRegistry;
 // ...
 
 CollectorRegistry registry = // ...
-Runnable publisher = HystrixPrometheusMetricsPublisher.register("application_name", registry);
-```
-
-Trigger the publisher to export metrics into Prometheus.
-
-```java
-publisher.run();
+HystrixPrometheusMetricsPublisher.register("application_name", registry);
 ```
 
 ## DEVELOPMENT

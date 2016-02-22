@@ -20,33 +20,33 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
  * Implementation of {@link HystrixMetricsPublisherCollapser} using Prometheus Metrics.
  */
-public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser, Runnable {
+public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser {
 
-    private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
+    private static final String SUBSYSTEM = "hystrix_collapser";
 
-    private final String collapserName;
+    private final Map<String, String> labels;
     private final boolean exportProperties;
 
-    private final GaugeRegistry registry;
     private final HystrixCollapserMetrics metrics;
     private final HystrixCollapserProperties properties;
+    private final PrometheusMetricsCollector collector;
 
     public HystrixPrometheusMetricsPublisherCollapser(
-            GaugeRegistry registry, HystrixCollapserKey key, HystrixCollapserMetrics metrics,
+            PrometheusMetricsCollector collector, HystrixCollapserKey key, HystrixCollapserMetrics metrics,
             HystrixCollapserProperties properties, boolean exportProperties) {
 
         this.metrics = metrics;
-        this.registry = registry;
+        this.collector = collector;
         this.properties = properties;
-        this.collapserName = key.name();
         this.exportProperties = exportProperties;
+        this.labels = Collections.singletonMap("collapser_name", key.name());
     }
 
     @Override
@@ -60,8 +60,7 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
 
         final String batchDoc = "Collapser the batch size metric.";
-
-        values.put(createMetricName("batch_size_mean", batchDoc), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, "batch_size_mean", batchDoc, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return metrics.getBatchSizeMean();
@@ -76,8 +75,7 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createBatchSizePercentile("batch_size_percentile_995", 99.5, batchDoc);
 
         final String shardDoc = "Collapser shard size metric.";
-
-        values.put(createMetricName("shard_size_mean", shardDoc), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, "shard_size_mean", shardDoc, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return metrics.getShardSizeMean();
@@ -103,75 +101,61 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         }
     }
 
-    /**
-     * Export current hystrix metrix into Prometheus.
-     */
-    @Override
-    public void run() {
-        registry.recordMetrics(values, collapserName);
+    private void createCumulativeCountForEvent(String metric, final HystrixRollingNumberEvent event) {
+        String doc = "These are cumulative counts since the start of the application.";
+        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getCumulativeCount(event);
+            }
+        });
     }
 
-    private String createMetricName(String metric, String documentation) {
-        return registry.registerGauge("hystrix_collapser", metric, documentation, "collapser_name");
+    private void createRollingCountForEvent(String metric, final HystrixRollingNumberEvent event) {
+        String doc = "These are \"point in time\" counts representing the last X seconds.";
+        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getRollingCount(event);
+            }
+        });
     }
 
-    private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        values.put(createMetricName(name, "These are cumulative counts since the start of the application."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getCumulativeCount(event);
-                    }
-                });
+    private void createBatchSizePercentile(String metric, final double percentile, String documentation) {
+        collector.addGauge(SUBSYSTEM, metric, documentation, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getBatchSizePercentile(percentile);
+            }
+        });
     }
 
-    private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        values.put(createMetricName(name, "These are \"point in time\" counts representing the last X seconds."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getRollingCount(event);
-                    }
-                });
+    private void createShardSizePercentile(String metric, final double percentile, String documentation) {
+        collector.addGauge(SUBSYSTEM, metric, documentation, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getShardSizePercentile(percentile);
+            }
+        });
     }
 
-    private void createBatchSizePercentile(String name, final double percentile, String documentation) {
-        values.put(createMetricName(name, documentation),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getBatchSizePercentile(percentile);
-                    }
-                });
+    private void createIntegerProperty(String metric, final HystrixProperty<Integer> property) {
+        String doc = "Configuration property partitioned by collapser_name.";
+        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return property.get();
+            }
+        });
     }
 
-    private void createShardSizePercentile(String name, final double percentile, String documentation) {
-        values.put(createMetricName(name, documentation),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getShardSizePercentile(percentile);
-                    }
-                });
-    }
-
-    private void createIntegerProperty(String name, final HystrixProperty<Integer> property) {
-        values.put(createMetricName(name, "Configuration property partitioned by collapser_name."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return property.get();
-                    }
-                });
-    }
-
-    private void createBooleanProperty(String name, final HystrixProperty<Boolean> property) {
-        values.put(createMetricName(name, "Configuration property partitioned by collapser_name."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return property.get() ? 1 : 0;
-                    }
-                });
+    private void createBooleanProperty(String metric, final HystrixProperty<Boolean> property) {
+        String doc = "Configuration property partitioned by collapser_name.";
+        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return property.get() ? 1 : 0;
+            }
+        });
     }
 }

@@ -31,60 +31,58 @@ import java.util.concurrent.Callable;
  * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherCommand.java">HystrixCodaHaleMetricsPublisherCommand</a>.</p>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#command-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
-public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand, Runnable {
+public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
 
-    private final Map<String, Callable<Number>> values = new HashMap<String, Callable<Number>>();
+    private static final String SUBSYSTEM = "hystrix_command";
 
-    private final String commandName;
-    private final String commandGroup;
+    private final Map<String, String> labels;
     private final boolean exportProperties;
 
-    private final GaugeRegistry registry;
     private final HystrixCommandMetrics metrics;
     private final HystrixCircuitBreaker circuitBreaker;
     private final HystrixCommandProperties properties;
+    private final PrometheusMetricsCollector collector;
 
     public HystrixPrometheusMetricsPublisherCommand(
-            GaugeRegistry registry, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
+            PrometheusMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
-        this.commandName = commandKey.name();
-        this.commandGroup = (commandGroupKey != null) ? commandGroupKey.name() : "default";
+        this.labels = new HashMap<String, String>();
+        this.labels.put("command_group", (commandGroupKey != null) ? commandGroupKey.name() : "default");
+        this.labels.put("command_name", commandKey.name());
+
         this.exportProperties = exportProperties;
 
         this.circuitBreaker = circuitBreaker;
         this.properties = properties;
-        this.registry = registry;
+        this.collector = collector;
         this.metrics = metrics;
     }
 
     @Override
     public void initialize() {
-        values.put(createMetricName("is_circuit_breaker_open", "Current status of circuit breaker: 1 = open, 0 = closed."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return booleanToNumber(circuitBreaker.isOpen());
-                    }
-                }
-        );
-        values.put(createMetricName("execution_semaphore_permits_in_use", "The number of executionSemaphorePermits in use right now."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getCurrentConcurrentExecutionCount();
-                    }
-                }
-        );
-        values.put(createMetricName("error_percentage", "Error percentage derived from current metrics."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getHealthCounts().getErrorPercentage();
-                    }
-                }
-        );
+        String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
+        collector.addGauge(SUBSYSTEM, "is_circuit_breaker_open", circuitDoc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return booleanToNumber(circuitBreaker.isOpen());
+            }
+        });
+        String permitsDoc = "The number of executionSemaphorePermits in use right now.";
+        collector.addGauge(SUBSYSTEM, "execution_semaphore_permits_in_use", permitsDoc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getCurrentConcurrentExecutionCount();
+            }
+        });
+        String errorsDoc = "Error percentage derived from current metrics.";
+        collector.addGauge(SUBSYSTEM, "error_percentage", errorsDoc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getHealthCounts().getErrorPercentage();
+            }
+        });
 
         createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
         createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
@@ -121,14 +119,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         final String latencyExecuteDescription = "Rolling percentiles of execution times for the "
                 + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-        values.put(createMetricName("latency_execute_mean", latencyExecuteDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getExecutionTimeMean();
-                    }
-                }
-        );
+        collector.addGauge(SUBSYSTEM, "latency_execute_mean", latencyExecuteDescription, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getExecutionTimeMean();
+            }
+        });
         createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecuteDescription);
         createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecuteDescription);
         createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecuteDescription);
@@ -144,14 +140,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                 + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
                 + "aspects of overhead (including metrics capture itself).";
 
-        values.put(createMetricName("latency_total_mean", latencyTotalDescription),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getTotalTimeMean();
-                    }
-                }
-        );
+        collector.addGauge(SUBSYSTEM, "latency_total_mean", latencyTotalDescription, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getTotalTimeMean();
+            }
+        });
         createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDescription);
         createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDescription);
         createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDescription);
@@ -195,40 +189,28 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         }
     }
 
-    /**
-     * Export current hystrix metrix into Prometheus.
-     */
-    @Override
-    public void run() {
-        registry.recordMetrics(values, commandGroup, commandName);
-    }
-
-    private String createMetricName(String metric, String documentation) {
-        return registry.registerGauge("hystrix_command", metric, documentation, "command_group", "command_name");
-    }
-
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        values.put(createMetricName(name, "These are cumulative counts since the start of the application."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getCumulativeCount(event);
-                    }
-                });
+        String doc = "These are cumulative counts since the start of the application.";
+        collector.addGauge(SUBSYSTEM, name, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getCumulativeCount(event);
+            }
+        });
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        values.put(createMetricName(name, "These are \"point in time\" counts representing the last X seconds."),
-                new Callable<Number>() {
-                    @Override
-                    public Number call() {
-                        return metrics.getRollingCount(event);
-                    }
-                });
+        String doc = "These are \"point in time\" counts representing the last X seconds.";
+        collector.addGauge(SUBSYSTEM, name, doc, labels, new Callable<Number>() {
+            @Override
+            public Number call() {
+                return metrics.getRollingCount(event);
+            }
+        });
     }
 
     private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
-        values.put(createMetricName(name, documentation), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return metrics.getExecutionTimePercentile(percentile);
@@ -237,7 +219,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void createTotalTimePercentile(String name, final double percentile, String documentation) {
-        values.put(createMetricName(name, documentation), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return metrics.getTotalTimePercentile(percentile);
@@ -246,7 +228,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void createIntegerProperty(String name, final HystrixProperty<Integer> property, String documentation) {
-        values.put(createMetricName(name, documentation), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return property.get();
@@ -255,7 +237,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void createBooleanProperty(String name, final HystrixProperty<Boolean> property, String documentation) {
-        values.put(createMetricName(name, documentation), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return booleanToNumber(property.get());
@@ -264,7 +246,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void createEnumProperty(String name, final HystrixProperty<? extends Enum> property, String documentation) {
-        values.put(createMetricName(name, documentation), new Callable<Number>() {
+        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
             @Override
             public Number call() {
                 return property.get().ordinal();

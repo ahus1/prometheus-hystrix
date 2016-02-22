@@ -31,23 +31,18 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import io.prometheus.client.CollectorRegistry;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * <p><a href="https://github.com/prometheus/client_java">Prometheus Java Client</a> implementation of {@link HystrixMetricsPublisher}.</p>
  * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisher.java">HystrixCodaHaleMetricsPublisher</a>.</p>
  * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
  */
-public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher implements Runnable {
+public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
-    private final GaugeRegistry registry;
+    private final PrometheusMetricsCollector collector;
     private final boolean exportProperties;
-    private final List<Runnable> publishers;
 
     public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties) {
-        this.registry = new GaugeRegistry(registry, namespace);
-        this.publishers = new ArrayList<Runnable>();
+        this.collector = new PrometheusMetricsCollector(namespace, registry);
         this.exportProperties = exportProperties;
     }
 
@@ -57,11 +52,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties) {
 
-        HystrixPrometheusMetricsPublisherCommand publisher = new HystrixPrometheusMetricsPublisherCommand(
-                registry, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties);
-
-        publishers.add(publisher);
-        return publisher;
+        return new HystrixPrometheusMetricsPublisherCommand(
+                collector, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties);
     }
 
     @Override
@@ -69,11 +61,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixThreadPoolKey threadPoolKey, HystrixThreadPoolMetrics metrics,
             HystrixThreadPoolProperties properties) {
 
-        HystrixPrometheusMetricsPublisherThreadPool publisher = new HystrixPrometheusMetricsPublisherThreadPool(
-                registry, threadPoolKey, metrics, properties, exportProperties);
-
-        publishers.add(publisher);
-        return publisher;
+        return new HystrixPrometheusMetricsPublisherThreadPool(
+                collector, threadPoolKey, metrics, properties, exportProperties);
     }
 
     @Override
@@ -81,21 +70,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
             HystrixCollapserKey collapserKey, HystrixCollapserMetrics metrics,
             HystrixCollapserProperties properties) {
 
-        HystrixPrometheusMetricsPublisherCollapser publisher = new HystrixPrometheusMetricsPublisherCollapser(
-                registry, collapserKey, metrics, properties, exportProperties);
-
-        publishers.add(publisher);
-        return publisher;
-    }
-
-    /**
-     * Trigger all created metrics publishers to export their metrics into Prometheus.
-     */
-    @Override
-    public void run() {
-        for (Runnable publisher : publishers) {
-            publisher.run();
-        }
+        return new HystrixPrometheusMetricsPublisherCollapser(
+                collector, collapserKey, metrics, properties, exportProperties);
     }
 
     /**
@@ -106,8 +82,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
      *
      * @see CollectorRegistry#defaultRegistry
      */
-    public static HystrixPrometheusMetricsPublisher register(String namespace) {
-        return register(namespace, CollectorRegistry.defaultRegistry);
+    public static void register(String namespace) {
+        register(namespace, CollectorRegistry.defaultRegistry);
     }
 
     /**
@@ -115,9 +91,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher i
      * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The publisher
      * registered by this method will NOT attempt to export properties.
      */
-    public static HystrixPrometheusMetricsPublisher register(String namespace, CollectorRegistry registry) {
+    public static void register(String namespace, CollectorRegistry registry) {
         HystrixPrometheusMetricsPublisher publisher = new HystrixPrometheusMetricsPublisher(namespace, registry, false);
         HystrixPlugins.getInstance().registerMetricsPublisher(publisher);
-        return publisher;
     }
 }
