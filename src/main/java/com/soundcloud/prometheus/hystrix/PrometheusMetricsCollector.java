@@ -32,7 +32,7 @@ public class PrometheusMetricsCollector extends Collector {
     private static final Logger LOG = LoggerFactory.getLogger(PrometheusMetricsCollector.class);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Map<Gauge, List<Value>> gauges = new HashMap<Gauge, List<Value>>();
+    private final Map<Gauge, List<Value>> gauges = new HashMap<>();
 
     private final String namespace;
 
@@ -50,7 +50,7 @@ public class PrometheusMetricsCollector extends Collector {
             Gauge gauge = new Gauge(name, documentation);
             List<Value> values = gauges.get(gauge);
             if (values == null) {
-                values = new ArrayList<Value>();
+                values = new ArrayList<>();
                 gauges.put(gauge, values);
             }
             values.add(new Value(labels, value));
@@ -63,7 +63,7 @@ public class PrometheusMetricsCollector extends Collector {
     public List<MetricFamilySamples> collect() {
         lock.readLock().lock();
         try {
-            List<MetricFamilySamples> samples = new ArrayList<MetricFamilySamples>(gauges.size());
+            List<MetricFamilySamples> samples = new ArrayList<>(gauges.size());
             for (Map.Entry<Gauge, List<Value>> entry : gauges.entrySet()) {
                 samples.add(entry.getKey().toSamples(entry.getValue()));
             }
@@ -84,7 +84,7 @@ public class PrometheusMetricsCollector extends Collector {
         }
 
         public MetricFamilySamples toSamples(List<Value> values) {
-            List<MetricFamilySamples.Sample> samples = new ArrayList<MetricFamilySamples.Sample>(values.size());
+            List<MetricFamilySamples.Sample> samples = new ArrayList<>(values.size());
             for (Value value : values) {
                 MetricFamilySamples.Sample sample = value.toSample(name);
                 if (sample != null) {
@@ -118,9 +118,9 @@ public class PrometheusMetricsCollector extends Collector {
         private final Callable<Number> value;
 
         public Value(Map<String, String> labels, Callable<Number> value) {
-            TreeMap<String, String> map = new TreeMap<String, String>(labels);
-            this.labelNames = new ArrayList<String>(map.keySet());
-            this.labelValues = new ArrayList<String>(map.values());
+            TreeMap<String, String> map = new TreeMap<>(labels);
+            this.labelNames = new ArrayList<>(map.keySet());
+            this.labelValues = new ArrayList<>(map.values());
             this.value = value;
         }
 

@@ -48,7 +48,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
-        this.labels = new HashMap<String, String>();
+        this.labels = new HashMap<>();
         this.labels.put("command_group", (commandGroupKey != null) ? commandGroupKey.name() : "default");
         this.labels.put("command_name", commandKey.name());
 
