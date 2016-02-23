@@ -17,7 +17,6 @@ import com.netflix.hystrix.HystrixCollapserKey;
 import com.netflix.hystrix.HystrixCollapserMetrics;
 import com.netflix.hystrix.HystrixCollapserProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
-import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
 import java.util.Collections;
@@ -51,21 +50,16 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
 
     @Override
     public void initialize() {
-        createCumulativeCountForEvent("count_requests_batched", HystrixRollingNumberEvent.COLLAPSER_REQUEST_BATCHED);
         createCumulativeCountForEvent("count_batches", HystrixRollingNumberEvent.COLLAPSER_BATCH);
+        createCumulativeCountForEvent("count_requests_batched", HystrixRollingNumberEvent.COLLAPSER_REQUEST_BATCHED);
         createCumulativeCountForEvent("count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
 
-        createRollingCountForEvent("rolling_requests_batched", HystrixRollingNumberEvent.COLLAPSER_REQUEST_BATCHED);
         createRollingCountForEvent("rolling_batches", HystrixRollingNumberEvent.COLLAPSER_BATCH);
+        createRollingCountForEvent("rolling_requests_batched", HystrixRollingNumberEvent.COLLAPSER_REQUEST_BATCHED);
         createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
 
-        final String batchDoc = "Collapser the batch size metric.";
-        collector.addGauge(SUBSYSTEM, "batch_size_mean", batchDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getBatchSizeMean();
-            }
-        });
+        String batchDoc = "Collapser the batch size metric.";
+        register("batch_size_mean", batchDoc, metrics::getBatchSizeMean);
 
         createBatchSizePercentile("batch_size_percentile_25", 25, batchDoc);
         createBatchSizePercentile("batch_size_percentile_50", 50, batchDoc);
@@ -74,13 +68,8 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createBatchSizePercentile("batch_size_percentile_99", 99, batchDoc);
         createBatchSizePercentile("batch_size_percentile_995", 99.5, batchDoc);
 
-        final String shardDoc = "Collapser shard size metric.";
-        collector.addGauge(SUBSYSTEM, "shard_size_mean", shardDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getShardSizeMean();
-            }
-        });
+        String shardDoc = "Collapser shard size metric.";
+        register("shard_size_mean", shardDoc, metrics::getShardSizeMean);
 
         createShardSizePercentile("shard_size_percentile_25", 25, shardDoc);
         createShardSizePercentile("shard_size_percentile_50", 50, shardDoc);
@@ -90,72 +79,33 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createShardSizePercentile("shard_size_percentile_995", 99.5, shardDoc);
 
         if (exportProperties) {
-            createIntegerProperty("property_value_rolling_statistical_window_in_milliseconds",
-                    properties.metricsRollingStatisticalWindowInMilliseconds());
-            createBooleanProperty("property_value_request_cache_enabled",
-                    properties.requestCacheEnabled());
-            createIntegerProperty("property_value_max_requests_in_batch",
-                    properties.maxRequestsInBatch());
-            createIntegerProperty("property_value_timer_delay_in_milliseconds",
-                    properties.timerDelayInMilliseconds());
+            String doc = "Configuration property partitioned by collapser_name.";
+            register("property_value_max_requests_in_batch", doc, () -> properties.maxRequestsInBatch().get());
+            register("property_value_request_cache_enabled", doc, () -> properties.requestCacheEnabled().get() ? 1 : 0);
+            register("property_value_timer_delay_in_milliseconds", doc, () -> properties.timerDelayInMilliseconds().get());
+            register("property_value_rolling_statistical_window_in_milliseconds", doc, () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
         }
     }
 
     private void createCumulativeCountForEvent(String metric, final HystrixRollingNumberEvent event) {
         String doc = "These are cumulative counts since the start of the application.";
-        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCumulativeCount(event);
-            }
-        });
+        register(metric, doc, () -> metrics.getCumulativeCount(event));
     }
 
     private void createRollingCountForEvent(String metric, final HystrixRollingNumberEvent event) {
         String doc = "These are \"point in time\" counts representing the last X seconds.";
-        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getRollingCount(event);
-            }
-        });
+        register(metric, doc, () -> metrics.getRollingCount(event));
     }
 
     private void createBatchSizePercentile(String metric, final double percentile, String documentation) {
-        collector.addGauge(SUBSYSTEM, metric, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getBatchSizePercentile(percentile);
-            }
-        });
+        register(metric, documentation, () -> metrics.getBatchSizePercentile(percentile));
     }
 
     private void createShardSizePercentile(String metric, final double percentile, String documentation) {
-        collector.addGauge(SUBSYSTEM, metric, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getShardSizePercentile(percentile);
-            }
-        });
+        register(metric, documentation, () -> metrics.getShardSizePercentile(percentile));
     }
 
-    private void createIntegerProperty(String metric, final HystrixProperty<Integer> property) {
-        String doc = "Configuration property partitioned by collapser_name.";
-        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return property.get();
-            }
-        });
-    }
-
-    private void createBooleanProperty(String metric, final HystrixProperty<Boolean> property) {
-        String doc = "Configuration property partitioned by collapser_name.";
-        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return property.get() ? 1 : 0;
-            }
-        });
+    private void register(String metric, String helpDoc, Callable<Number> value) {
+        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
     }
 }

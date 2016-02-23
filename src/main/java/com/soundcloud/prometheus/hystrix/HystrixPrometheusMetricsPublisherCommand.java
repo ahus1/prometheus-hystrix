@@ -19,7 +19,6 @@ import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
 import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
-import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
 import java.util.HashMap;
@@ -63,26 +62,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     @Override
     public void initialize() {
         String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
-        collector.addGauge(SUBSYSTEM, "is_circuit_breaker_open", circuitDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return booleanToNumber(circuitBreaker.isOpen());
-            }
-        });
-        String permitsDoc = "The number of executionSemaphorePermits in use right now.";
-        collector.addGauge(SUBSYSTEM, "execution_semaphore_permits_in_use", permitsDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentConcurrentExecutionCount();
-            }
-        });
+        register("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
+
         String errorsDoc = "Error percentage derived from current metrics.";
-        collector.addGauge(SUBSYSTEM, "error_percentage", errorsDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getHealthCounts().getErrorPercentage();
-            }
-        });
+        register("error_percentage", errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
+
+        String permitsDoc = "The number of executionSemaphorePermits in use right now.";
+        register("execution_semaphore_permits_in_use", permitsDoc, metrics::getCurrentConcurrentExecutionCount);
 
         createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
         createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
@@ -116,142 +102,103 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         createRollingCountForEvent("rolling_count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
         createRollingCountForEvent("rolling_count_timeout", HystrixRollingNumberEvent.TIMEOUT);
 
-        final String latencyExecuteDescription = "Rolling percentiles of execution times for the "
+        String latencyExecDoc = "Rolling percentiles of execution times for the "
                 + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-        collector.addGauge(SUBSYSTEM, "latency_execute_mean", latencyExecuteDescription, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getExecutionTimeMean();
-            }
-        });
-        createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_75", 75, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_90", 90, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecuteDescription);
-        createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecuteDescription);
+        register("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
 
-        final String latencyTotalDescription = "Rolling percentiles of execution times for the "
+        createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_75", 75, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_90", 90, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecDoc);
+        createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecDoc);
+
+        String latencyTotalDoc = "Rolling percentiles of execution times for the "
                 + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
                 + "a response is returned (or ready to return in case of queue(). The purpose of this "
                 + "compared with the latency_execute* percentiles is to measure the cost of thread "
                 + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
                 + "aspects of overhead (including metrics capture itself).";
 
-        collector.addGauge(SUBSYSTEM, "latency_total_mean", latencyTotalDescription, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getTotalTimeMean();
-            }
-        });
-        createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_75", 75, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDescription);
-        createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDescription);
+        register("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
+
+        createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_75", 75, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDoc);
+        createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDoc);
 
         if (exportProperties) {
-            final String propDesc = "These informational metrics report the "
+            String propDesc = "These informational metrics report the "
                     + "actual property values being used by the HystrixCommand. This is useful to "
                     + "see when a dynamic property takes effect and confirm a property is set as "
                     + "expected.";
 
-            createIntegerProperty("property_value_rolling_statistical_window_in_milliseconds",
-                    properties.metricsRollingStatisticalWindowInMilliseconds(), propDesc);
-            createIntegerProperty("property_value_circuit_breaker_request_volume_threshold",
-                    properties.circuitBreakerRequestVolumeThreshold(), propDesc);
-            createIntegerProperty("property_value_circuit_breaker_sleep_window_in_milliseconds",
-                    properties.circuitBreakerSleepWindowInMilliseconds(), propDesc);
-            createIntegerProperty("property_value_circuit_breaker_error_threshold_percentage",
-                    properties.circuitBreakerErrorThresholdPercentage(), propDesc);
-            createBooleanProperty("property_value_circuit_breaker_force_open",
-                    properties.circuitBreakerForceOpen(), propDesc);
-            createBooleanProperty("property_value_circuit_breaker_force_closed",
-                    properties.circuitBreakerForceClosed(), propDesc);
-            createIntegerProperty("property_value_execution_timeout_in_milliseconds",
-                    properties.executionTimeoutInMilliseconds(), propDesc);
-            createEnumProperty("property_value_execution_isolation_strategy",
-                    properties.executionIsolationStrategy(), propDesc);
-            createBooleanProperty("property_value_metrics_rolling_percentile_enabled",
-                    properties.metricsRollingPercentileEnabled(), propDesc);
-            createBooleanProperty("property_value_request_cache_enabled",
-                    properties.requestCacheEnabled(), propDesc);
-            createBooleanProperty("property_value_request_log_enabled",
-                    properties.requestLogEnabled(), propDesc);
-            createIntegerProperty("property_value_execution_isolation_semaphore_max_concurrent_requests",
-                    properties.executionIsolationSemaphoreMaxConcurrentRequests(), propDesc);
-            createIntegerProperty("property_value_fallback_isolation_semaphore_max_concurrent_requests",
-                    properties.fallbackIsolationSemaphoreMaxConcurrentRequests(), propDesc);
+            register("property_value_rolling_statistical_window_in_milliseconds", propDesc,
+                    () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
+
+            register("property_value_circuit_breaker_request_volume_threshold", propDesc,
+                    () -> properties.circuitBreakerRequestVolumeThreshold().get());
+
+            register("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc,
+                    () -> properties.circuitBreakerSleepWindowInMilliseconds().get());
+
+            register("property_value_circuit_breaker_error_threshold_percentage", propDesc,
+                    () -> properties.circuitBreakerErrorThresholdPercentage().get());
+
+            register("property_value_circuit_breaker_force_open", propDesc,
+                    () -> booleanToNumber(properties.circuitBreakerForceOpen().get()));
+
+            register("property_value_circuit_breaker_force_closed", propDesc,
+                    () -> booleanToNumber(properties.circuitBreakerForceClosed().get()));
+
+            register("property_value_execution_timeout_in_milliseconds", propDesc,
+                    () -> properties.executionTimeoutInMilliseconds().get());
+
+            register("property_value_execution_isolation_strategy", propDesc,
+                    () -> properties.executionIsolationStrategy().get().ordinal());
+
+            register("property_value_metrics_rolling_percentile_enabled", propDesc,
+                    () -> booleanToNumber(properties.metricsRollingPercentileEnabled().get()));
+
+            register("property_value_request_cache_enabled", propDesc,
+                    () -> booleanToNumber(properties.requestCacheEnabled().get()));
+
+            register("property_value_request_log_enabled", propDesc,
+                    () -> booleanToNumber(properties.requestLogEnabled().get()));
+
+            register("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc,
+                    () -> properties.executionIsolationSemaphoreMaxConcurrentRequests().get());
+
+            register("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc,
+                    () -> properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get());
         }
     }
 
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "These are cumulative counts since the start of the application.";
-        collector.addGauge(SUBSYSTEM, name, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCumulativeCount(event);
-            }
-        });
+        register(name, doc, () -> metrics.getCumulativeCount(event));
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "These are \"point in time\" counts representing the last X seconds.";
-        collector.addGauge(SUBSYSTEM, name, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getRollingCount(event);
-            }
-        });
+        register(name, doc, () -> metrics.getRollingCount(event));
     }
 
     private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
-        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getExecutionTimePercentile(percentile);
-            }
-        });
+        register(name, documentation, () -> metrics.getExecutionTimePercentile(percentile));
     }
 
     private void createTotalTimePercentile(String name, final double percentile, String documentation) {
-        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getTotalTimePercentile(percentile);
-            }
-        });
+        register(name, documentation, () -> metrics.getTotalTimePercentile(percentile));
     }
 
-    private void createIntegerProperty(String name, final HystrixProperty<Integer> property, String documentation) {
-        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return property.get();
-            }
-        });
-    }
-
-    private void createBooleanProperty(String name, final HystrixProperty<Boolean> property, String documentation) {
-        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return booleanToNumber(property.get());
-            }
-        });
-    }
-
-    private void createEnumProperty(String name, final HystrixProperty<? extends Enum> property, String documentation) {
-        collector.addGauge(SUBSYSTEM, name, documentation, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return property.get().ordinal();
-            }
-        });
+    private void register(String metric, String helpDoc, Callable<Number> value) {
+        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
     }
 
     private int booleanToNumber(boolean value) {

@@ -21,10 +21,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 public class PrometheusMetricsCollector extends Collector {
 
@@ -39,13 +41,13 @@ public class PrometheusMetricsCollector extends Collector {
         this.namespace = namespace;
     }
 
-    public void addGauge(String subsystem, String metric, String documentation,
+    public void addGauge(String subsystem, String metric, String helpDoc,
                          Map<String, String> labels, Callable<Number> value) {
 
         lock.writeLock().lock();
         try {
             String name = namespace + "_" + subsystem + "_" + metric;
-            Gauge gauge = new Gauge(name, documentation);
+            Gauge gauge = new Gauge(name, helpDoc);
             List<Value> values = gauges.get(gauge);
             if (values == null) {
                 values = new ArrayList<>();
@@ -61,11 +63,9 @@ public class PrometheusMetricsCollector extends Collector {
     public List<MetricFamilySamples> collect() {
         lock.readLock().lock();
         try {
-            List<MetricFamilySamples> samples = new ArrayList<>(gauges.size());
-            for (Map.Entry<Gauge, List<Value>> entry : gauges.entrySet()) {
-                samples.add(entry.getKey().toSamples(entry.getValue()));
-            }
-            return samples;
+            return gauges.entrySet().stream()
+                    .map(e -> e.getKey().toSamples(e.getValue()))
+                    .collect(Collectors.toList());
         } finally {
             lock.readLock().unlock();
         }
@@ -82,14 +82,10 @@ public class PrometheusMetricsCollector extends Collector {
         }
 
         public MetricFamilySamples toSamples(List<Value> values) {
-            List<MetricFamilySamples.Sample> samples = new ArrayList<>(values.size());
-            for (Value value : values) {
-                MetricFamilySamples.Sample sample = value.toSample(name);
-                if (sample != null) {
-                    samples.add(sample);
-                }
-            }
-            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, samples);
+            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, values.stream()
+                    .map(v -> v.toSample(name))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList()));
         }
 
         @Override

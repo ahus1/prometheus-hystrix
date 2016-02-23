@@ -17,7 +17,6 @@ import com.netflix.hystrix.HystrixThreadPoolKey;
 import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
-import com.netflix.hystrix.strategy.properties.HystrixProperty;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
 import java.util.Collections;
@@ -54,81 +53,31 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
     @Override
     public void initialize() {
-        final String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
-        collector.addGauge(SUBSYSTEM, "thread_active_count", currentStateDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentActiveCount();
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "completed_task_count", currentStateDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentCompletedTaskCount();
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "largest_pool_size", currentStateDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentLargestPoolSize();
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "total_task_count", currentStateDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentTaskCount();
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "queue_size", currentStateDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCurrentQueueSize();
-            }
-        });
+        String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
+        register("thread_active_count", currentStateDoc, metrics::getCurrentActiveCount);
+        register("completed_task_count", currentStateDoc, metrics::getCurrentCompletedTaskCount);
+        register("largest_pool_size", currentStateDoc, metrics::getCurrentLargestPoolSize);
+        register("total_task_count", currentStateDoc, metrics::getCurrentTaskCount);
+        register("queue_size", currentStateDoc, metrics::getCurrentQueueSize);
 
-        final String rollingCountDoc = "Rolling count partitioned by pool_name.";
-        collector.addGauge(SUBSYSTEM, "rolling_max_active_threads", rollingCountDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getRollingMaxActiveThreads();
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "rolling_count_commands_rejected", rollingCountDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getRollingCount(HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
-            }
-        });
-        collector.addGauge(SUBSYSTEM, "rolling_count_threads_executed", rollingCountDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getRollingCountThreadsExecuted();
-            }
-        });
+        String rollDoc = "Rolling count partitioned by pool_name.";
+        register("rolling_max_active_threads", rollDoc, metrics::getRollingMaxActiveThreads);
+        register("rolling_count_threads_executed", rollDoc, metrics::getRollingCountThreadsExecuted);
+        register("rolling_count_commands_rejected", rollDoc, () -> metrics.getRollingCount(HystrixRollingNumberEvent.THREAD_POOL_REJECTED));
 
-        final String cumulativeDoc = "Cumulative count partitioned by pool_name.";
-        collector.addGauge(SUBSYSTEM, "count_threads_executed", cumulativeDoc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return metrics.getCumulativeCountThreadsExecuted();
-            }
-        });
+        String totalDoc = "Cumulative count partitioned by pool_name.";
+        register("count_threads_executed", totalDoc, metrics::getCumulativeCountThreadsExecuted);
 
         if (exportProperties) {
-            createIntegerProperty("property_value_core_pool_size", properties.coreSize());
-            createIntegerProperty("property_value_keep_alive_time_in_minutes", properties.keepAliveTimeMinutes());
-            createIntegerProperty("property_value_queue_size_rejection_threshold", properties.queueSizeRejectionThreshold());
-            createIntegerProperty("property_value_max_queue_size", properties.maxQueueSize());
+            String doc = "Configuration property partitioned by pool_name.";
+            register("property_value_core_pool_size", doc, () -> properties.coreSize().get());
+            register("property_value_keep_alive_time_in_minutes", doc, () -> properties.keepAliveTimeMinutes().get());
+            register("property_value_queue_size_rejection_threshold", doc, () -> properties.queueSizeRejectionThreshold().get());
+            register("property_value_max_queue_size", doc, () -> properties.maxQueueSize().get());
         }
     }
 
-    private void createIntegerProperty(String metric, final HystrixProperty<Integer> property) {
-        String doc = "Configuration property partitioned by pool_name.";
-        collector.addGauge(SUBSYSTEM, metric, doc, labels, new Callable<Number>() {
-            @Override
-            public Number call() {
-                return property.get();
-            }
-        });
+    private void register(String metric, String helpDoc, Callable<Number> value) {
+        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
     }
 }

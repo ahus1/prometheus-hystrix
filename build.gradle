@@ -6,10 +6,10 @@ apply plugin: 'signing'
 defaultTasks 'clean', 'build'
 
 group = 'com.soundcloud'
-version = project.properties.get('buildVersion') ?: '2.1-SNAPSHOT'
+version = project.properties.get('buildVersion') ?: '3.0-SNAPSHOT'
 
-sourceCompatibility = '1.7'
-targetCompatibility = '1.7'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
 
 repositories {
   mavenCentral()
