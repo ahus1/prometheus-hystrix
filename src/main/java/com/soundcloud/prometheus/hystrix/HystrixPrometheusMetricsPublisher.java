@@ -32,17 +32,16 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import io.prometheus.client.CollectorRegistry;
 
 /**
- * <p><a href="https://github.com/prometheus/client_java">Prometheus Java Client</a> implementation of {@link HystrixMetricsPublisher}.</p>
- * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisher.java">HystrixCodaHaleMetricsPublisher</a>.</p>
- * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
+ * Implementation of {@link HystrixMetricsPublisher} using Prometheus Metrics.
+ * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
-    private final PrometheusMetricsCollector collector;
+    private final HystrixMetricsCollector collector;
     private final boolean exportProperties;
 
     public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties) {
-        this.collector = new PrometheusMetricsCollector(namespace).register(registry);
+        this.collector = new HystrixMetricsCollector(namespace).register(registry);
         this.exportProperties = exportProperties;
     }
 

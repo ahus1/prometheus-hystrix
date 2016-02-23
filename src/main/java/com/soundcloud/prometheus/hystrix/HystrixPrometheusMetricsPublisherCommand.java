@@ -26,9 +26,8 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
- * <p>Implementation of {@link HystrixMetricsPublisherCommand} using the <a href="https://github.com/prometheus/client_java">Prometheus Java Client</a>.</p>
- * <p>This class is based on <a href="https://github.com/Netflix/Hystrix/blob/master/hystrix-contrib/hystrix-codahale-metrics-publisher/src/main/java/com/netflix/hystrix/contrib/codahalemetricspublisher/HystrixCodaHaleMetricsPublisherCommand.java">HystrixCodaHaleMetricsPublisherCommand</a>.</p>
- * <p>For a description of the hystrix metrics see the <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring#command-metrics">Hystrix Metrics &amp; Monitoring wiki</a>.<p/>
+ * Implementation of {@link HystrixPrometheusMetricsPublisherCommand} using Prometheus Metrics.
+ * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
 
@@ -40,10 +39,10 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final HystrixCommandMetrics metrics;
     private final HystrixCircuitBreaker circuitBreaker;
     private final HystrixCommandProperties properties;
-    private final PrometheusMetricsCollector collector;
+    private final HystrixMetricsCollector collector;
 
     public HystrixPrometheusMetricsPublisherCommand(
-            PrometheusMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
+            HystrixMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
@@ -62,50 +61,50 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     @Override
     public void initialize() {
         String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
-        register("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
+        addGauge("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
 
         String errorsDoc = "Error percentage derived from current metrics.";
-        register("error_percentage", errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
+        addGauge("error_percentage", errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
 
         String permitsDoc = "The number of executionSemaphorePermits in use right now.";
-        register("execution_semaphore_permits_in_use", permitsDoc, metrics::getCurrentConcurrentExecutionCount);
+        addGauge("execution_semaphore_permits_in_use", permitsDoc, metrics::getCurrentConcurrentExecutionCount);
 
-        createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
-        createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
         createCumulativeCountForEvent("count_emit", HystrixRollingNumberEvent.EMIT);
-        createCumulativeCountForEvent("count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
+        createCumulativeCountForEvent("count_success", HystrixRollingNumberEvent.SUCCESS);
         createCumulativeCountForEvent("count_failure", HystrixRollingNumberEvent.FAILURE);
+        createCumulativeCountForEvent("count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+        createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
+        createCumulativeCountForEvent("count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
+        createCumulativeCountForEvent("count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
+        createCumulativeCountForEvent("count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
         createCumulativeCountForEvent("count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
+        createCumulativeCountForEvent("count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
         createCumulativeCountForEvent("count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
         createCumulativeCountForEvent("count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
-        createCumulativeCountForEvent("count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
+        createCumulativeCountForEvent("count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
         createCumulativeCountForEvent("count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
-        createCumulativeCountForEvent("count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
-        createCumulativeCountForEvent("count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
-        createCumulativeCountForEvent("count_success", HystrixRollingNumberEvent.SUCCESS);
-        createCumulativeCountForEvent("count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
-        createCumulativeCountForEvent("count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+        createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
 
-        createRollingCountForEvent("rolling_count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
-        createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
         createRollingCountForEvent("rolling_count_emit", HystrixRollingNumberEvent.EMIT);
-        createRollingCountForEvent("rolling_count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
+        createRollingCountForEvent("rolling_count_success", HystrixRollingNumberEvent.SUCCESS);
         createRollingCountForEvent("rolling_count_failure", HystrixRollingNumberEvent.FAILURE);
+        createRollingCountForEvent("rolling_count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+        createRollingCountForEvent("rolling_count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
+        createRollingCountForEvent("rolling_count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
+        createRollingCountForEvent("rolling_count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
+        createRollingCountForEvent("rolling_count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
         createRollingCountForEvent("rolling_count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
+        createRollingCountForEvent("rolling_count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
         createRollingCountForEvent("rolling_count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
         createRollingCountForEvent("rolling_count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
-        createRollingCountForEvent("rolling_count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
+        createRollingCountForEvent("rolling_count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
         createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
-        createRollingCountForEvent("rolling_count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
-        createRollingCountForEvent("rolling_count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
-        createRollingCountForEvent("rolling_count_success", HystrixRollingNumberEvent.SUCCESS);
-        createRollingCountForEvent("rolling_count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
-        createRollingCountForEvent("rolling_count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+        createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
 
         String latencyExecDoc = "Rolling percentiles of execution times for the "
                 + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-        register("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
+        addGauge("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
 
         createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecDoc);
         createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecDoc);
@@ -122,7 +121,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                 + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
                 + "aspects of overhead (including metrics capture itself).";
 
-        register("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
+        addGauge("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
 
         createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDoc);
         createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDoc);
@@ -138,66 +137,66 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     + "see when a dynamic property takes effect and confirm a property is set as "
                     + "expected.";
 
-            register("property_value_rolling_statistical_window_in_milliseconds", propDesc,
+            addGauge("property_value_rolling_statistical_window_in_milliseconds", propDesc,
                     () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
 
-            register("property_value_circuit_breaker_request_volume_threshold", propDesc,
+            addGauge("property_value_circuit_breaker_request_volume_threshold", propDesc,
                     () -> properties.circuitBreakerRequestVolumeThreshold().get());
 
-            register("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc,
+            addGauge("property_value_circuit_breaker_sleep_window_in_milliseconds", propDesc,
                     () -> properties.circuitBreakerSleepWindowInMilliseconds().get());
 
-            register("property_value_circuit_breaker_error_threshold_percentage", propDesc,
+            addGauge("property_value_circuit_breaker_error_threshold_percentage", propDesc,
                     () -> properties.circuitBreakerErrorThresholdPercentage().get());
 
-            register("property_value_circuit_breaker_force_open", propDesc,
+            addGauge("property_value_circuit_breaker_force_open", propDesc,
                     () -> booleanToNumber(properties.circuitBreakerForceOpen().get()));
 
-            register("property_value_circuit_breaker_force_closed", propDesc,
+            addGauge("property_value_circuit_breaker_force_closed", propDesc,
                     () -> booleanToNumber(properties.circuitBreakerForceClosed().get()));
 
-            register("property_value_execution_timeout_in_milliseconds", propDesc,
+            addGauge("property_value_execution_timeout_in_milliseconds", propDesc,
                     () -> properties.executionTimeoutInMilliseconds().get());
 
-            register("property_value_execution_isolation_strategy", propDesc,
+            addGauge("property_value_execution_isolation_strategy", propDesc,
                     () -> properties.executionIsolationStrategy().get().ordinal());
 
-            register("property_value_metrics_rolling_percentile_enabled", propDesc,
+            addGauge("property_value_metrics_rolling_percentile_enabled", propDesc,
                     () -> booleanToNumber(properties.metricsRollingPercentileEnabled().get()));
 
-            register("property_value_request_cache_enabled", propDesc,
+            addGauge("property_value_request_cache_enabled", propDesc,
                     () -> booleanToNumber(properties.requestCacheEnabled().get()));
 
-            register("property_value_request_log_enabled", propDesc,
+            addGauge("property_value_request_log_enabled", propDesc,
                     () -> booleanToNumber(properties.requestLogEnabled().get()));
 
-            register("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc,
+            addGauge("property_value_execution_isolation_semaphore_max_concurrent_requests", propDesc,
                     () -> properties.executionIsolationSemaphoreMaxConcurrentRequests().get());
 
-            register("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc,
+            addGauge("property_value_fallback_isolation_semaphore_max_concurrent_requests", propDesc,
                     () -> properties.fallbackIsolationSemaphoreMaxConcurrentRequests().get());
         }
     }
 
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "These are cumulative counts since the start of the application.";
-        register(name, doc, () -> metrics.getCumulativeCount(event));
+        addGauge(name, doc, () -> metrics.getCumulativeCount(event));
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "These are \"point in time\" counts representing the last X seconds.";
-        register(name, doc, () -> metrics.getRollingCount(event));
+        addGauge(name, doc, () -> metrics.getRollingCount(event));
     }
 
     private void createExcecutionTimePercentile(String name, final double percentile, String documentation) {
-        register(name, documentation, () -> metrics.getExecutionTimePercentile(percentile));
+        addGauge(name, documentation, () -> metrics.getExecutionTimePercentile(percentile));
     }
 
     private void createTotalTimePercentile(String name, final double percentile, String documentation) {
-        register(name, documentation, () -> metrics.getTotalTimePercentile(percentile));
+        addGauge(name, documentation, () -> metrics.getTotalTimePercentile(percentile));
     }
 
-    private void register(String metric, String helpDoc, Callable<Number> value) {
+    private void addGauge(String metric, String helpDoc, Callable<Number> value) {
         collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
     }
 

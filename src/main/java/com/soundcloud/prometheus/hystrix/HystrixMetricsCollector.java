@@ -28,16 +28,19 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-public class PrometheusMetricsCollector extends Collector {
+/**
+ * Implementation of a Prometheus Collector for Hystrix metrics.
+ */
+public class HystrixMetricsCollector extends Collector {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PrometheusMetricsCollector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HystrixMetricsCollector.class);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<Gauge, List<Value>> gauges = new HashMap<>();
 
     private final String namespace;
 
-    public PrometheusMetricsCollector(String namespace) {
+    public HystrixMetricsCollector(String namespace) {
         this.namespace = namespace;
     }
 
@@ -122,7 +125,7 @@ public class PrometheusMetricsCollector extends Collector {
             try {
                 return new MetricFamilySamples.Sample(name, labelNames, labelValues, value.call().doubleValue());
             } catch (Exception e) {
-                LOG.warn(String.format("Cannot export %s gauge - caused by: %s", name, e), e);
+                LOG.warn(String.format("Cannot export %s - caused by: %s", name, e), e);
                 return null;
             }
         }
