@@ -32,7 +32,7 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import io.prometheus.client.CollectorRegistry;
 
 /**
- * Implementation of {@link HystrixMetricsPublisher} using Prometheus Metrics.
+ * Implementation of a {@link HystrixMetricsPublisher} for Prometheus Metrics.
  * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {

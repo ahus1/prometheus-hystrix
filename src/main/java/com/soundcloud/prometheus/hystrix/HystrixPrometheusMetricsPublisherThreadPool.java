@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
- * Implementation of {@link HystrixPrometheusMetricsPublisherThreadPool} using Prometheus Metrics.
+ * Implementation of a {@link HystrixMetricsPublisherThreadPool} for Prometheus Metrics.
  * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool {

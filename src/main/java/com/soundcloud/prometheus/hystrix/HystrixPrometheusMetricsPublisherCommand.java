@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
- * Implementation of {@link HystrixPrometheusMetricsPublisherCommand} using Prometheus Metrics.
+ * Implementation of a {@link HystrixMetricsPublisherCommand} for Prometheus Metrics.
  * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
