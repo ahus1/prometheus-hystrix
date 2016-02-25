@@ -28,8 +28,6 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool {
 
-    private static final String SUBSYSTEM = "hystrix_thread_pool";
-
     private final Map<String, String> labels;
     private final boolean exportProperties;
 
@@ -75,6 +73,6 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     }
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
-        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
+        collector.addGauge("hystrix_thread_pool", metric, helpDoc, labels, value);
     }
 }

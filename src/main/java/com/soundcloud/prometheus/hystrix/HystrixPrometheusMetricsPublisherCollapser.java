@@ -29,8 +29,6 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser {
 
-    private static final String SUBSYSTEM = "hystrix_collapser";
-
     private final Map<String, String> labels;
     private final boolean exportProperties;
 
@@ -107,6 +105,6 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
     }
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
-        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
+        collector.addGauge("hystrix_collapser", metric, helpDoc, labels, value);
     }
 }

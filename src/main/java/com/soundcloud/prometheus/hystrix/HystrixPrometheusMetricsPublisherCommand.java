@@ -31,8 +31,6 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
 
-    private static final String SUBSYSTEM = "hystrix_command";
-
     private final Map<String, String> labels;
     private final boolean exportProperties;
 
@@ -197,7 +195,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
-        collector.addGauge(SUBSYSTEM, metric, helpDoc, labels, value);
+        collector.addGauge("hystrix_command", metric, helpDoc, labels, value);
     }
 
     private int booleanToNumber(boolean value) {
