@@ -39,12 +39,11 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
             HystrixMetricsCollector collector, HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
             HystrixThreadPoolProperties properties, boolean exportProperties) {
 
-        this.labels = Collections.singletonMap("pool_name", key.name());
-        this.exportProperties = exportProperties;
-
         this.metrics = metrics;
         this.collector = collector;
         this.properties = properties;
+        this.exportProperties = exportProperties;
+        this.labels = Collections.singletonMap("pool_name", key.name());
     }
 
     @Override
