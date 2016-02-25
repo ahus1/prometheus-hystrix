@@ -79,10 +79,18 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
 
         if (exportProperties) {
             String doc = "Configuration property partitioned by collapser_name.";
-            addGauge("property_value_max_requests_in_batch", doc, () -> properties.maxRequestsInBatch().get());
-            addGauge("property_value_request_cache_enabled", doc, () -> properties.requestCacheEnabled().get() ? 1 : 0);
-            addGauge("property_value_timer_delay_in_milliseconds", doc, () -> properties.timerDelayInMilliseconds().get());
-            addGauge("property_value_rolling_statistical_window_in_milliseconds", doc, () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
+
+            addGauge("property_value_max_requests_in_batch", doc,
+                    () -> properties.maxRequestsInBatch().get());
+
+            addGauge("property_value_request_cache_enabled", doc,
+                    () -> properties.requestCacheEnabled().get() ? 1 : 0);
+
+            addGauge("property_value_timer_delay_in_milliseconds", doc,
+                    () -> properties.timerDelayInMilliseconds().get());
+
+            addGauge("property_value_rolling_statistical_window_in_milliseconds", doc,
+                    () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
         }
     }
 
