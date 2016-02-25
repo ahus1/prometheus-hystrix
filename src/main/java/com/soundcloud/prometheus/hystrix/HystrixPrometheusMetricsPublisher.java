@@ -74,7 +74,28 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     }
 
     /**
-     * Register an instance of this publisher for the given namespace with the
+     * Register an instance of this publisher, without a namespace, with the
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The publisher
+     * registered by this method will register metrics with the default CollectorRegistry
+     * and will NOT attempt to export properties.
+     *
+     * @see CollectorRegistry#defaultRegistry
+     */
+    public static void register() {
+        register(null, CollectorRegistry.defaultRegistry);
+    }
+
+    /**
+     * Register an instance of this publisher, without a namespace, with the
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The publisher
+     * registered by this method will NOT attempt to export properties.
+     */
+    public static void register(CollectorRegistry registry) {
+        register(null, registry);
+    }
+
+    /**
+     * Register an instance of this publisher, for the given namespace, with the
      * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The publisher
      * registered by this method will register metrics with the default CollectorRegistry
      * and will NOT attempt to export properties.
@@ -86,7 +107,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     }
 
     /**
-     * Register an instance of this publisher for the given namespace with the
+     * Register an instance of this publisher, for the given namespace, with the
      * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton. The publisher
      * registered by this method will NOT attempt to export properties.
      */

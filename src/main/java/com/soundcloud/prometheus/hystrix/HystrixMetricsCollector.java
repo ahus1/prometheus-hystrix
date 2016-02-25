@@ -49,8 +49,7 @@ public class HystrixMetricsCollector extends Collector {
 
         lock.writeLock().lock();
         try {
-            String name = namespace + "_" + subsystem + "_" + metric;
-            Gauge gauge = new Gauge(name, helpDoc);
+            Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
             List<Value> values = gauges.get(gauge);
             if (values == null) {
                 values = new ArrayList<>();
@@ -60,6 +59,12 @@ public class HystrixMetricsCollector extends Collector {
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    private String name(String subsystem, String metric) {
+        return (namespace != null)
+                ? namespace + "_" + subsystem + "_" + metric
+                : subsystem + "_" + metric;
     }
 
     @Override
