@@ -21,8 +21,8 @@ import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
 /**
@@ -44,7 +44,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties, boolean exportProperties) {
 
-        this.labels = new HashMap<>();
+        this.labels = new TreeMap<>();
         this.labels.put("command_group", (commandGroupKey != null) ? commandGroupKey.name() : "default");
         this.labels.put("command_name", commandKey.name());
 

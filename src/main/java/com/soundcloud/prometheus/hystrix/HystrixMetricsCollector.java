@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -120,9 +119,8 @@ public class HystrixMetricsCollector extends Collector {
         private final Callable<Number> value;
 
         public Value(Map<String, String> labels, Callable<Number> value) {
-            TreeMap<String, String> map = new TreeMap<>(labels);
-            this.labelNames = new ArrayList<>(map.keySet());
-            this.labelValues = new ArrayList<>(map.values());
+            this.labelNames = new ArrayList<>(labels.keySet());
+            this.labelValues = new ArrayList<>(labels.values());
             this.value = value;
         }
 
