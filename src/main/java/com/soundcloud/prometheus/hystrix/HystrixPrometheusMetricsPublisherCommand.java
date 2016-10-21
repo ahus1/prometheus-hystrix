@@ -178,7 +178,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
         String doc = "These are cumulative counts since the start of the application.";
-        addGauge(name, doc, () -> metrics.getCumulativeCount(event));
+        addCounter(name, doc, () -> metrics.getCumulativeCount(event));
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
@@ -196,6 +196,10 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
         collector.addGauge("hystrix_command", metric, helpDoc, labels, value);
+    }
+
+    private void addCounter(String metric, String helpDoc, Callable<Number> value) {
+    	collector.addCounter("hystrix_command", metric, helpDoc, labels, value);
     }
 
     private int booleanToNumber(boolean value) {

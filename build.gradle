@@ -16,8 +16,8 @@ repositories {
 }
 
 dependencies {
-  compile 'com.netflix.hystrix:hystrix-core:1.4.23'
-  compile 'io.prometheus:simpleclient:0.0.13'
+  compile 'com.netflix.hystrix:hystrix-core:1.5.3'
+  compile 'io.prometheus:simpleclient:0.0.14'
 }
 
 ext.sharedManifest = manifest {

@@ -35,7 +35,7 @@ public class HystrixMetricsCollector extends Collector {
     private static final Logger LOG = LoggerFactory.getLogger(HystrixMetricsCollector.class);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Map<Gauge, List<Value>> gauges = new HashMap<>();
+    private final Map<AbstractCollector, List<Value>> collectors = new HashMap<>();
 
     private final String namespace;
 
@@ -46,13 +46,22 @@ public class HystrixMetricsCollector extends Collector {
     public void addGauge(String subsystem, String metric, String helpDoc,
                          Map<String, String> labels, Callable<Number> value) {
 
+        addCollector(new Gauge(name(subsystem, metric), helpDoc), labels, value);
+    }
+
+    public void addCounter(String subsystem, String metric, String helpDoc,
+            Map<String, String> labels, Callable<Number> value) {
+
+        addCollector(new Counter(name(subsystem, metric), helpDoc), labels, value);
+    }
+
+    private void addCollector(AbstractCollector collector, Map<String, String> labels, Callable<Number> value) {
         lock.writeLock().lock();
         try {
-            Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
-            List<Value> values = gauges.get(gauge);
+            List<Value> values = collectors.get(collector);
             if (values == null) {
                 values = new ArrayList<>();
-                gauges.put(gauge, values);
+                collectors.put(collector, values);
             }
             values.add(new Value(labels, value));
         } finally {
@@ -70,7 +79,7 @@ public class HystrixMetricsCollector extends Collector {
     public List<MetricFamilySamples> collect() {
         lock.readLock().lock();
         try {
-            return gauges.entrySet().stream()
+            return collectors.entrySet().stream()
                     .map(e -> e.getKey().toSamples(e.getValue()))
                     .collect(Collectors.toList());
         } finally {
@@ -78,18 +87,47 @@ public class HystrixMetricsCollector extends Collector {
         }
     }
 
-    private static class Gauge {
+    private static class Gauge extends AbstractCollector {
+        public Gauge(String name, String helpDoc) {
+            super(name, helpDoc, Type.GAUGE);
+        }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Gauge)) {
+                return false;
+            }
+            return super.equals(obj);
+        }
+    }
+
+    private static class Counter extends AbstractCollector {
+        public Counter(String name, String helpDoc) {
+            super(name, helpDoc, Type.COUNTER);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Counter)) {
+                return false;
+            }
+            return super.equals(obj);
+        }
+    }
+
+    private abstract static class AbstractCollector {
         private final String name;
         private final String helpDoc;
+        private final Type type;
 
-        public Gauge(String name, String helpDoc) {
+        public AbstractCollector(String name, String helpDoc, Type type) {
             this.name = name;
             this.helpDoc = helpDoc;
+            this.type = type;
         }
 
         public MetricFamilySamples toSamples(List<Value> values) {
-            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, values.stream()
+            return new MetricFamilySamples(name, type, helpDoc, values.stream()
                     .map(v -> v.toSample(name))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList()));
@@ -104,8 +142,8 @@ public class HystrixMetricsCollector extends Collector {
         public boolean equals(Object obj) {
             if (this == obj) {
                 return true;
-            } else if (obj instanceof Gauge) {
-                Gauge other = (Gauge) obj;
+            } else if (obj instanceof AbstractCollector) {
+                AbstractCollector other = (AbstractCollector) obj;
                 return this.name.equals(other.name);
             }
             return false;
