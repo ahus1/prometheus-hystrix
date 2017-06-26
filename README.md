@@ -5,6 +5,11 @@ that publishes metrics using Prometheus' [SimpleClient](https://github.com/prome
 
 See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring) Wiki for more information.
 
+Note that this repositry is currently unmaintained. A new maintainer would be highly appreciated.
+If that maintainer is not a SoundCloud employee, it is recommended to fork this repository to
+maintain it outside of the SoundCloud GitHub organization. If you are interested, please file an
+issue in this repo to update README.md accordingly.
+
 ## USAGE
 
 Register the metrics publisher for your application's namespace and the default Prometheus CollectorRegistry with Hystrix.
