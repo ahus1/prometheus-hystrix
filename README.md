@@ -5,10 +5,7 @@ that publishes metrics using Prometheus' [SimpleClient](https://github.com/prome
 
 See the [Netflix Metrics & Monitoring](https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring) Wiki for more information.
 
-_Note that this repository is currently unmaintained. A new maintainer would be highly appreciated.
-If that maintainer is not a SoundCloud employee, it is recommended to fork this repository to
-maintain it outside of the SoundCloud GitHub organization. If you are interested, please file an
-issue in this repo to update README.md accordingly._
+_Note that this repository is currently unmaintained. A forked (and maintained) version is now available at [ahus1/prometheus-hystrix](https://github.com/ahus1/prometheus-hystrix)._
 
 ## USAGE
 
