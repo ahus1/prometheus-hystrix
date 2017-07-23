@@ -1,0 +1,84 @@
+= prometheus-hystrix-metrics-publisher
+
+This is an implementation of a http://netflix.github.com/Hystrix/javadoc/index.html?com/netflix/hystrix/strategy/metrics/HystrixMetricsPublisher.html[HystrixMetricsPublisher]
+that publishes metrics using Prometheus' https://github.com/prometheus/client_java[SimpleClient].
+
+See the https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring[Netflix Metrics &amp; Monitoring] Wiki for more information.
+
+_This is a fork of the original SoundCloud repository. It aims to achieve the following:_
+
+* Publish this library on Maven Central
+* Adopt best practices in https://prometheus.io/docs/practices/naming/[naming metrics].
+* Support ongoing development
+* Long term goal: merge this project with https://github.com/prometheus/client_java[Prometheus Java Simple Client].
+
+## USAGE
+
+Include the most recent release from Maven Central in your build configuration.
+
+[source,xml]
+----
+<dependency>
+    <groupId>de.ahus1.prometheus.hystrix</groupId>
+    <artifactId>prometheus-hystrix</artifactId>
+    <version>3.x.x</version>
+</dependency>
+----
+
+Register the metrics publisher for your application's namespace and the default Prometheus CollectorRegistry with Hystrix.
+
+[source,java]
+----
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
+
+// ...
+
+HystrixPrometheusMetricsPublisher.register("application_name");
+----
+
+Register the publisher for your application's namespace with your own Prometheus CollectorRegistry with Hystrix.
+
+[source,java]
+----
+import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
+import io.prometheus.client.CollectorRegistry;
+
+// ...
+
+CollectorRegistry registry = // ...
+HystrixPrometheusMetricsPublisher.register("application_name", registry);
+----
+
+== DEVELOPMENT
+
+Run `./mvnw package` to compile, test and JARs locally.
+
+The most recent development version (based on the _master_ branch on GitHub) is available from the Sonatype OSS Snapshot Repository. To use it, include the following repository in your _pom.xml_.
+
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>snapshots-repo</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <releases><enabled>false</enabled></releases>
+        <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+</repositories>
+----
+
+== LICENSE
+
+Copyright 2014-2017 SoundCloud, Inc., Alexander Schwartz and Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0[http://www.apache.org/licenses/LICENSE-2.0]
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
