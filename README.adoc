@@ -3,6 +3,9 @@
 This is an implementation of a http://netflix.github.com/Hystrix/javadoc/index.html?com/netflix/hystrix/strategy/metrics/HystrixMetricsPublisher.html[HystrixMetricsPublisher]
 that publishes metrics using Prometheus' https://github.com/prometheus/client_java[SimpleClient].
 
+image:https://img.shields.io/maven-central/v/de.ahus1.prometheus.hystrix/prometheus-hystrix.svg[]
+image:https://travis-ci.org/ahus1/prometheus-hystrix.svg?branch=master[]
+
 See the https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring[Netflix Metrics &amp; Monitoring] Wiki for more information.
 
 _This is a fork of the original SoundCloud repository. It aims to achieve the following:_
