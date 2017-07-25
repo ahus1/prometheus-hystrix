@@ -34,20 +34,25 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
     private final HystrixThreadPoolMetrics metrics;
     private final HystrixThreadPoolProperties properties;
     private final HystrixMetricsCollector collector;
+    private final HystrixMetricsPublisherThreadPool delegate;
 
     public HystrixPrometheusMetricsPublisherThreadPool(
             HystrixMetricsCollector collector, HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
-            HystrixThreadPoolProperties properties, boolean exportProperties) {
+            HystrixThreadPoolProperties properties, boolean exportProperties,
+            HystrixMetricsPublisherThreadPool delegate) {
 
         this.metrics = metrics;
         this.collector = collector;
         this.properties = properties;
         this.exportProperties = exportProperties;
         this.labels = Collections.singletonMap("pool_name", key.name());
+        this.delegate = delegate;
     }
 
     @Override
     public void initialize() {
+        delegate.initialize();
+
         String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
         addGauge("thread_active_count", currentStateDoc, metrics::getCurrentActiveCount);
         addGauge("completed_task_count", currentStateDoc, metrics::getCurrentCompletedTaskCount);

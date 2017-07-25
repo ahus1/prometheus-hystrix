@@ -39,11 +39,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final HystrixCommandProperties properties;
     private final HystrixMetricsCollector collector;
     private final HystrixCommandKey commandKey;
+    private HystrixMetricsPublisherCommand delegate;
 
     public HystrixPrometheusMetricsPublisherCommand(
             HystrixMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
-            HystrixCommandProperties properties, boolean exportProperties) {
+            HystrixCommandProperties properties, boolean exportProperties, HystrixMetricsPublisherCommand delegate) {
 
         this.labels = new TreeMap<>();
         this.labels.put("command_group", (commandGroupKey != null) ? commandGroupKey.name() : "default");
@@ -56,10 +57,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         this.collector = collector;
         this.metrics = metrics;
         this.commandKey = commandKey;
+        this.delegate = delegate;
     }
 
     @Override
     public void initialize() {
+        delegate.initialize();
+
         String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
         addGauge("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
 

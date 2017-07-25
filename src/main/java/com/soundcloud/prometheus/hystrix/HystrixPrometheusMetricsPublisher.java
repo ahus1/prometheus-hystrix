@@ -25,10 +25,14 @@ import com.netflix.hystrix.HystrixThreadPoolKey;
 import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.HystrixPlugins;
+import com.netflix.hystrix.strategy.concurrency.HystrixConcurrencyStrategy;
+import com.netflix.hystrix.strategy.eventnotifier.HystrixEventNotifier;
+import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHook;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisher;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
+import com.netflix.hystrix.strategy.properties.HystrixPropertiesStrategy;
 import io.prometheus.client.CollectorRegistry;
 
 /**
@@ -39,10 +43,12 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
     private final HystrixMetricsCollector collector;
     private final boolean exportProperties;
+    private HystrixMetricsPublisher metricsPublisherDelegate;
 
-    public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties) {
+    public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties, HystrixMetricsPublisher metricsPublisherDelegate) {
         this.collector = new HystrixMetricsCollector(namespace).register(registry);
         this.exportProperties = exportProperties;
+        this.metricsPublisherDelegate = metricsPublisherDelegate;
     }
 
     @Override
@@ -50,27 +56,34 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
             HystrixCommandProperties properties) {
+        HystrixMetricsPublisherCommand delegate = metricsPublisherDelegate.getMetricsPublisherForCommand(commandKey,
+                commandGroupKey, metrics, circuitBreaker, properties);
 
         return new HystrixPrometheusMetricsPublisherCommand(
-                collector, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties);
+                collector, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties,
+                delegate);
     }
 
     @Override
     public HystrixMetricsPublisherThreadPool getMetricsPublisherForThreadPool(
             HystrixThreadPoolKey threadPoolKey, HystrixThreadPoolMetrics metrics,
             HystrixThreadPoolProperties properties) {
+        HystrixMetricsPublisherThreadPool delegate = metricsPublisherDelegate.getMetricsPublisherForThreadPool(
+                threadPoolKey, metrics, properties);
 
         return new HystrixPrometheusMetricsPublisherThreadPool(
-                collector, threadPoolKey, metrics, properties, exportProperties);
+                collector, threadPoolKey, metrics, properties, exportProperties, delegate);
     }
 
     @Override
     public HystrixMetricsPublisherCollapser getMetricsPublisherForCollapser(
             HystrixCollapserKey collapserKey, HystrixCollapserMetrics metrics,
             HystrixCollapserProperties properties) {
+        HystrixMetricsPublisherCollapser delegate = metricsPublisherDelegate.getMetricsPublisherForCollapser(
+                collapserKey, metrics, properties);
 
         return new HystrixPrometheusMetricsPublisherCollapser(
-                collector, collapserKey, metrics, properties, exportProperties);
+                collector, collapserKey, metrics, properties, exportProperties, delegate);
     }
 
     /**
@@ -112,7 +125,33 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * registered by this method will NOT attempt to export properties.
      */
     public static void register(String namespace, CollectorRegistry registry) {
-        HystrixPrometheusMetricsPublisher publisher = new HystrixPrometheusMetricsPublisher(namespace, registry, false);
-        HystrixPlugins.getInstance().registerMetricsPublisher(publisher);
+
+        // memorize the registered plugins
+        HystrixCommandExecutionHook commandExecutionHook = HystrixPlugins
+                .getInstance().getCommandExecutionHook();
+        HystrixEventNotifier eventNotifier = HystrixPlugins.getInstance()
+                .getEventNotifier();
+        HystrixMetricsPublisher metricsPublisher = HystrixPlugins.getInstance()
+                .getMetricsPublisher();
+        HystrixPropertiesStrategy propertiesStrategy = HystrixPlugins.getInstance()
+                .getPropertiesStrategy();
+        HystrixConcurrencyStrategy concurrencyStrategy = HystrixPlugins.getInstance()
+                .getConcurrencyStrategy();
+
+        // wrap the metrics publisher plugin
+        HystrixPrometheusMetricsPublisher wrappedMetricsPublisher =
+                new HystrixPrometheusMetricsPublisher(namespace, registry, false, metricsPublisher);
+
+        // reset all plugins
+        HystrixPlugins.reset();
+
+        // set previous values for all plugins ...
+        HystrixPlugins.getInstance().registerConcurrencyStrategy(concurrencyStrategy);
+        HystrixPlugins.getInstance().registerCommandExecutionHook(commandExecutionHook);
+        HystrixPlugins.getInstance().registerEventNotifier(eventNotifier);
+        HystrixPlugins.getInstance().registerPropertiesStrategy(propertiesStrategy);
+
+        // ... except for the metrics publisher that will now be wrapped
+        HystrixPlugins.getInstance().registerMetricsPublisher(wrappedMetricsPublisher);
     }
 }

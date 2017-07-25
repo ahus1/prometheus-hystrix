@@ -30,6 +30,7 @@ import java.util.concurrent.Callable;
 public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser {
 
     private final Map<String, String> labels;
+    private HystrixMetricsPublisherCollapser delegate;
     private final boolean exportProperties;
 
     private final HystrixCollapserMetrics metrics;
@@ -38,17 +39,21 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
 
     public HystrixPrometheusMetricsPublisherCollapser(
             HystrixMetricsCollector collector, HystrixCollapserKey key, HystrixCollapserMetrics metrics,
-            HystrixCollapserProperties properties, boolean exportProperties) {
+            HystrixCollapserProperties properties, boolean exportProperties,
+            HystrixMetricsPublisherCollapser delegate) {
 
         this.metrics = metrics;
         this.collector = collector;
         this.properties = properties;
         this.exportProperties = exportProperties;
         this.labels = Collections.singletonMap("collapser_name", key.name());
+        this.delegate = delegate;
     }
 
     @Override
     public void initialize() {
+        delegate.initialize();
+
         createCumulativeCountForEvent("count_batches", HystrixRollingNumberEvent.COLLAPSER_BATCH);
         createCumulativeCountForEvent("count_requests_batched", HystrixRollingNumberEvent.COLLAPSER_REQUEST_BATCHED);
         createCumulativeCountForEvent("count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
