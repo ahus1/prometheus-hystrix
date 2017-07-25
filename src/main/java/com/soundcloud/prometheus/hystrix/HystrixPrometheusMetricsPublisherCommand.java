@@ -13,14 +13,14 @@
  */
 package com.soundcloud.prometheus.hystrix;
 
-import com.netflix.hystrix.HystrixCircuitBreaker;
-import com.netflix.hystrix.HystrixCommandGroupKey;
-import com.netflix.hystrix.HystrixCommandKey;
-import com.netflix.hystrix.HystrixCommandMetrics;
-import com.netflix.hystrix.HystrixCommandProperties;
+import com.netflix.hystrix.*;
+import com.netflix.hystrix.metric.HystrixCommandCompletionStream;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
@@ -38,6 +38,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final HystrixCircuitBreaker circuitBreaker;
     private final HystrixCommandProperties properties;
     private final HystrixMetricsCollector collector;
+    private final HystrixCommandKey commandKey;
 
     public HystrixPrometheusMetricsPublisherCommand(
             HystrixMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
@@ -54,6 +55,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         this.properties = properties;
         this.collector = collector;
         this.metrics = metrics;
+        this.commandKey = commandKey;
     }
 
     @Override
@@ -99,7 +101,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
         createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
 
-        String latencyExecDoc = "Rolling percentiles of execution times for the "
+        String latencyExecDoc = "DEPRECATED: Rolling percentiles of execution times for the "
                 + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
         addGauge("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
@@ -112,7 +114,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecDoc);
         createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecDoc);
 
-        String latencyTotalDoc = "Rolling percentiles of execution times for the "
+        String latencyTotalDoc = "DEPRECATED: Rolling percentiles of execution times for the "
                 + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
                 + "a response is returned (or ready to return in case of queue(). The purpose of this "
                 + "compared with the latency_execute* percentiles is to measure the cost of thread "
@@ -128,6 +130,39 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDoc);
         createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDoc);
         createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDoc);
+
+        String histogramLatencyTotalDoc = "Execution times for the "
+                + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
+                + "a response is returned (or ready to return in case of queue(). The purpose of this "
+                + "compared with the latency_execute* percentiles is to measure the cost of thread "
+                + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
+                + "aspects of overhead (including metrics capture itself).";
+
+        String histogramLatencyExecDoc = "Execution times for the "
+                + "HystrixCommand.run() method (on the child thread if using thread isolation).";
+
+        Histogram.Child histogramLatencyTotal = addHistogram("latency_total_seconds", histogramLatencyTotalDoc);
+        Histogram.Child histogramLatencyExecute = addHistogram("latency_execute_seconds", histogramLatencyExecDoc);
+
+        HashMap<HystrixEventType, Counter.Child> counters = new HashMap<>();
+
+        for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
+            counters.put(hystrixEventType, addCounter("event_" + hystrixEventType.name().toLowerCase()
+                    + "_total"));
+        }
+
+        HystrixCommandCompletionStream.getInstance(commandKey)
+                .observe()
+                .subscribe(hystrixCommandCompletion -> {
+                    histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
+                    histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                    for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
+                        int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
+                        if (count > 0) {
+                            counters.get(hystrixEventType).inc(count);
+                        }
+                    }
+                });
 
         if (exportProperties) {
             String propDesc = "These informational metrics report the "
@@ -177,12 +212,12 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private void createCumulativeCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        String doc = "These are cumulative counts since the start of the application.";
+        String doc = "DEPRECATED: These are cumulative counts since the start of the application.";
         addGauge(name, doc, () -> metrics.getCumulativeCount(event));
     }
 
     private void createRollingCountForEvent(String name, final HystrixRollingNumberEvent event) {
-        String doc = "These are \"point in time\" counts representing the last X seconds.";
+        String doc = "DEPRECATED: These are \"point in time\" counts representing the last X seconds.";
         addGauge(name, doc, () -> metrics.getRollingCount(event));
     }
 
@@ -196,6 +231,15 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {
         collector.addGauge("hystrix_command", metric, helpDoc, labels, value);
+    }
+
+    private Histogram.Child addHistogram(String metric, String helpDoc) {
+        return collector.addHistogram("hystrix_command", metric, helpDoc, labels);
+    }
+
+    private Counter.Child addCounter(String metric) {
+        return collector.addCounter("hystrix_command", metric,
+                "These are cumulative counts since the start of the application.", labels);
     }
 
     private int booleanToNumber(boolean value) {
