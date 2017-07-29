@@ -52,11 +52,7 @@ public class HystrixMetricsCollector extends Collector {
         lock.writeLock().lock();
         try {
             Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
-            List<Value> values = gauges.get(gauge);
-            if (values == null) {
-                values = new ArrayList<>();
-                gauges.put(gauge, values);
-            }
+            List<Value> values = gauges.computeIfAbsent(gauge, k -> new ArrayList<>());
             values.add(new Value(labels, value));
         } finally {
             lock.writeLock().unlock();
@@ -70,13 +66,14 @@ public class HystrixMetricsCollector extends Collector {
             String name = name(subsystem, metric);
             Histogram histogram = histograms.get(name);
             if(histogram == null) {
-                histogram = Histogram.build().name(name).help(helpDoc).
-                        labelNames(labels.keySet().toArray(new String[]{})).create();
+                histogram = Histogram.build().name(name).help(helpDoc)
+                        .labelNames(labels.keySet().toArray(new String[]{}))
+                        .exponentialBuckets(0.001, 1.31, 30)
+                        .create();
                 histogram.register(registry);
                 histograms.put(name, histogram);
             }
-            Histogram.Child child = histogram.labels(labels.values().toArray(new String[]{}));
-            return child;
+            return histogram.labels(labels.values().toArray(new String[]{}));
         } finally {
             lock.writeLock().unlock();
         }
@@ -93,8 +90,7 @@ public class HystrixMetricsCollector extends Collector {
                 counter.register(registry);
                 counters.put(name, counter);
             }
-            Counter.Child child = counter.labels(labels.values().toArray(new String[]{}));
-            return child;
+            return counter.labels(labels.values().toArray(new String[]{}));
         } finally {
             lock.writeLock().unlock();
         }
