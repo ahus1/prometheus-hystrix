@@ -39,10 +39,10 @@ public class HystrixCommandTest {
 
         // then
         assertThat(CollectorRegistry.defaultRegistry
-                .getSampleValue("exampleapp_hystrix_command_event_success_total",
-                        new String[]{"command_group", "command_name"},
+                .getSampleValue("exampleapp_hystrix_command_event_total",
+                        new String[]{"command_group", "command_name", "event"},
                         new String[]{"group_shouldIncrementCounterOnSuccecssfulCommand",
-                                "command_shouldIncrementCounterOnSuccecssfulCommand"}))
+                                "command_shouldIncrementCounterOnSuccecssfulCommand", "success"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
     }
@@ -77,15 +77,15 @@ public class HystrixCommandTest {
 
         // then
         assertThat(CollectorRegistry.defaultRegistry
-                .getSampleValue("exampleapp_hystrix_command_event_success_total",
-                        new String[]{"command_group", "command_name"},
-                        new String[]{"group_cmd1", "command_cmd1"}))
+                .getSampleValue("exampleapp_hystrix_command_event_total",
+                        new String[]{"command_group", "command_name", "event"},
+                        new String[]{"group_cmd1", "command_cmd1", "success"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
         assertThat(CollectorRegistry.defaultRegistry
-                .getSampleValue("exampleapp_hystrix_command_event_success_total",
-                        new String[]{"command_group", "command_name"},
-                        new String[]{"group_cmd2", "command_cmd2"}))
+                .getSampleValue("exampleapp_hystrix_command_event_total",
+                        new String[]{"command_group", "command_name", "event"},
+                        new String[]{"group_cmd2", "command_cmd2", "success"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
     }

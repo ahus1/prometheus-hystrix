@@ -20,9 +20,7 @@ import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.Callable;
 
 /**
@@ -148,22 +146,23 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         Histogram.Child histogramLatencyTotal = addHistogram("latency_total_seconds", histogramLatencyTotalDoc);
         Histogram.Child histogramLatencyExecute = addHistogram("latency_execute_seconds", histogramLatencyExecDoc);
 
-        HashMap<HystrixEventType, Counter.Child> counters = new HashMap<>();
-
+        // pre-allocate the counters for all possible events to have a clean start for the metrics
+        HashMap<HystrixEventType, Counter.Child> eventCounters = new HashMap<>();
         for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
-            counters.put(hystrixEventType, addCounter("event_" + hystrixEventType.name().toLowerCase()
-                    + "_total"));
+            eventCounters.put(hystrixEventType, addCounter("event_total", "event", hystrixEventType.name().toLowerCase()));
         }
+        Counter.Child totalCounter = addCounter("total");
 
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
                 .subscribe(hystrixCommandCompletion -> {
                     histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
                     histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                    totalCounter.inc();
                     for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
                         int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
                         if (count > 0) {
-                            counters.get(hystrixEventType).inc(count);
+                            eventCounters.get(hystrixEventType).inc(count);
                         }
                     }
                 });
@@ -241,7 +240,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         return collector.addHistogram("hystrix_command", metric, helpDoc, labels);
     }
 
-    private Counter.Child addCounter(String metric) {
+    private Counter.Child addCounter(String metric, String... additionalLabels) {
+        Map<String, String> labels = new HashMap<>(this.labels);
+        labels.putAll(this.labels);
+        Iterator<String> l = Arrays.asList(additionalLabels).iterator();
+        while(l.hasNext()) {
+            labels.put(l.next(), l.next());
+        }
         return collector.addCounter("hystrix_command", metric,
                 "These are cumulative counts since the start of the application.", labels);
     }
