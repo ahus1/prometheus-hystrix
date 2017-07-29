@@ -38,11 +38,13 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     private final HystrixMetricsCollector collector;
     private final HystrixCommandKey commandKey;
     private HystrixMetricsPublisherCommand delegate;
+    private boolean exportDeprecatedMetrics;
 
     public HystrixPrometheusMetricsPublisherCommand(
             HystrixMetricsCollector collector, HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey,
             HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
-            HystrixCommandProperties properties, boolean exportProperties, HystrixMetricsPublisherCommand delegate) {
+            HystrixCommandProperties properties, boolean exportProperties, boolean exportDeprecatedMetrics,
+            HystrixMetricsPublisherCommand delegate) {
 
         this.labels = new TreeMap<>();
         this.labels.put("command_group", (commandGroupKey != null) ? commandGroupKey.name() : "default");
@@ -56,6 +58,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         this.metrics = metrics;
         this.commandKey = commandKey;
         this.delegate = delegate;
+        this.exportDeprecatedMetrics = exportDeprecatedMetrics;
     }
 
     @Override
@@ -65,73 +68,75 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         String circuitDoc = "Current status of circuit breaker: 1 = open, 0 = closed.";
         addGauge("is_circuit_breaker_open", circuitDoc, () -> booleanToNumber(circuitBreaker.isOpen()));
 
-        String errorsDoc = "Error percentage derived from current metrics.";
-        addGauge("error_percentage", errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
-
         String permitsDoc = "The number of executionSemaphorePermits in use right now.";
         addGauge("execution_semaphore_permits_in_use", permitsDoc, metrics::getCurrentConcurrentExecutionCount);
 
-        createCumulativeCountForEvent("count_emit", HystrixRollingNumberEvent.EMIT);
-        createCumulativeCountForEvent("count_success", HystrixRollingNumberEvent.SUCCESS);
-        createCumulativeCountForEvent("count_failure", HystrixRollingNumberEvent.FAILURE);
-        createCumulativeCountForEvent("count_timeout", HystrixRollingNumberEvent.TIMEOUT);
-        createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
-        createCumulativeCountForEvent("count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
-        createCumulativeCountForEvent("count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
-        createCumulativeCountForEvent("count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
-        createCumulativeCountForEvent("count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
-        createCumulativeCountForEvent("count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
-        createCumulativeCountForEvent("count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
-        createCumulativeCountForEvent("count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
-        createCumulativeCountForEvent("count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
-        createCumulativeCountForEvent("count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
-        createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
+        if (exportDeprecatedMetrics) {
+            String errorsDoc = "Error percentage derived from current metrics.";
+            addGauge("error_percentage", "DEPRECATED: " + errorsDoc, () -> metrics.getHealthCounts().getErrorPercentage());
 
-        createRollingCountForEvent("rolling_count_emit", HystrixRollingNumberEvent.EMIT);
-        createRollingCountForEvent("rolling_count_success", HystrixRollingNumberEvent.SUCCESS);
-        createRollingCountForEvent("rolling_count_failure", HystrixRollingNumberEvent.FAILURE);
-        createRollingCountForEvent("rolling_count_timeout", HystrixRollingNumberEvent.TIMEOUT);
-        createRollingCountForEvent("rolling_count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
-        createRollingCountForEvent("rolling_count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
-        createRollingCountForEvent("rolling_count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
-        createRollingCountForEvent("rolling_count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
-        createRollingCountForEvent("rolling_count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
-        createRollingCountForEvent("rolling_count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
-        createRollingCountForEvent("rolling_count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
-        createRollingCountForEvent("rolling_count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
-        createRollingCountForEvent("rolling_count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
-        createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
-        createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
+            createCumulativeCountForEvent("count_emit", HystrixRollingNumberEvent.EMIT);
+            createCumulativeCountForEvent("count_success", HystrixRollingNumberEvent.SUCCESS);
+            createCumulativeCountForEvent("count_failure", HystrixRollingNumberEvent.FAILURE);
+            createCumulativeCountForEvent("count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+            createCumulativeCountForEvent("count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
+            createCumulativeCountForEvent("count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
+            createCumulativeCountForEvent("count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
+            createCumulativeCountForEvent("count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
+            createCumulativeCountForEvent("count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
+            createCumulativeCountForEvent("count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
+            createCumulativeCountForEvent("count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
+            createCumulativeCountForEvent("count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
+            createCumulativeCountForEvent("count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
+            createCumulativeCountForEvent("count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
+            createCumulativeCountForEvent("count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
 
-        String latencyExecDoc = "DEPRECATED: Rolling percentiles of execution times for the "
-                + "HystrixCommand.run() method (on the child thread if using thread isolation).";
+            createRollingCountForEvent("rolling_count_emit", HystrixRollingNumberEvent.EMIT);
+            createRollingCountForEvent("rolling_count_success", HystrixRollingNumberEvent.SUCCESS);
+            createRollingCountForEvent("rolling_count_failure", HystrixRollingNumberEvent.FAILURE);
+            createRollingCountForEvent("rolling_count_timeout", HystrixRollingNumberEvent.TIMEOUT);
+            createRollingCountForEvent("rolling_count_bad_requests", HystrixRollingNumberEvent.BAD_REQUEST);
+            createRollingCountForEvent("rolling_count_short_circuited", HystrixRollingNumberEvent.SHORT_CIRCUITED);
+            createRollingCountForEvent("rolling_count_thread_pool_rejected", HystrixRollingNumberEvent.THREAD_POOL_REJECTED);
+            createRollingCountForEvent("rolling_count_semaphore_rejected", HystrixRollingNumberEvent.SEMAPHORE_REJECTED);
+            createRollingCountForEvent("rolling_count_fallback_emit", HystrixRollingNumberEvent.FALLBACK_EMIT);
+            createRollingCountForEvent("rolling_count_fallback_success", HystrixRollingNumberEvent.FALLBACK_SUCCESS);
+            createRollingCountForEvent("rolling_count_fallback_failure", HystrixRollingNumberEvent.FALLBACK_FAILURE);
+            createRollingCountForEvent("rolling_count_fallback_rejection", HystrixRollingNumberEvent.FALLBACK_REJECTION);
+            createRollingCountForEvent("rolling_count_exceptions_thrown", HystrixRollingNumberEvent.EXCEPTION_THROWN);
+            createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
+            createRollingCountForEvent("rolling_count_collapsed_requests", HystrixRollingNumberEvent.COLLAPSED);
 
-        addGauge("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
+            String latencyExecDoc = "DEPRECATED: Rolling percentiles of execution times for the "
+                    + "HystrixCommand.run() method (on the child thread if using thread isolation).";
 
-        createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_75", 75, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_90", 90, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecDoc);
-        createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecDoc);
+            addGauge("latency_execute_mean", latencyExecDoc, metrics::getExecutionTimeMean);
 
-        String latencyTotalDoc = "DEPRECATED: Rolling percentiles of execution times for the "
-                + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
-                + "a response is returned (or ready to return in case of queue(). The purpose of this "
-                + "compared with the latency_execute* percentiles is to measure the cost of thread "
-                + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
-                + "aspects of overhead (including metrics capture itself).";
+            createExcecutionTimePercentile("latency_execute_percentile_5", 5, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_25", 25, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_50", 50, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_75", 75, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_90", 90, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_99", 99, latencyExecDoc);
+            createExcecutionTimePercentile("latency_execute_percentile_995", 99.5, latencyExecDoc);
 
-        addGauge("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
+            String latencyTotalDoc = "DEPRECATED: Rolling percentiles of execution times for the "
+                    + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
+                    + "a response is returned (or ready to return in case of queue(). The purpose of this "
+                    + "compared with the latency_execute* percentiles is to measure the cost of thread "
+                    + "queuing/scheduling/execution, semaphores, circuit breaker logic and other "
+                    + "aspects of overhead (including metrics capture itself).";
 
-        createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_75", 75, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDoc);
-        createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDoc);
+            addGauge("latency_total_mean", latencyTotalDoc, metrics::getTotalTimeMean);
+
+            createTotalTimePercentile("latency_total_percentile_5", 5, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_25", 25, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_50", 50, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_75", 75, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_90", 90, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_99", 99, latencyTotalDoc);
+            createTotalTimePercentile("latency_total_percentile_995", 99.5, latencyTotalDoc);
+        }
 
         String histogramLatencyTotalDoc = "Execution times for the "
                 + "end-to-end execution of HystrixCommand.execute() or HystrixCommand.queue() until "
@@ -152,16 +157,27 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
             eventCounters.put(hystrixEventType, addCounter("event_total", "event", hystrixEventType.name().toLowerCase()));
         }
         Counter.Child totalCounter = addCounter("total");
+        Counter.Child errorCounter = addCounter("error_total");
 
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
                 .subscribe(hystrixCommandCompletion -> {
                     histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
                     histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
-                    totalCounter.inc();
                     for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
                         int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
                         if (count > 0) {
+                            switch (hystrixEventType) {
+                                /** this list is derived from {@link HystrixCommandMetrics.HealthCounts.plus} */
+                                case FAILURE:
+                                case TIMEOUT:
+                                case THREAD_POOL_REJECTED:
+                                case SEMAPHORE_REJECTED:
+                                    errorCounter.inc(count);
+                                case SUCCESS:
+                                    totalCounter.inc(count);
+                                    break;
+                            }
                             eventCounters.get(hystrixEventType).inc(count);
                         }
                     }
@@ -244,7 +260,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         Map<String, String> labels = new HashMap<>(this.labels);
         labels.putAll(this.labels);
         Iterator<String> l = Arrays.asList(additionalLabels).iterator();
-        while(l.hasNext()) {
+        while (l.hasNext()) {
             labels.put(l.next(), l.next());
         }
         return collector.addCounter("hystrix_command", metric,

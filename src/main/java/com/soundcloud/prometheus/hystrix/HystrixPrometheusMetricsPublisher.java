@@ -13,17 +13,7 @@
  */
 package com.soundcloud.prometheus.hystrix;
 
-import com.netflix.hystrix.HystrixCircuitBreaker;
-import com.netflix.hystrix.HystrixCollapserKey;
-import com.netflix.hystrix.HystrixCollapserMetrics;
-import com.netflix.hystrix.HystrixCollapserProperties;
-import com.netflix.hystrix.HystrixCommandGroupKey;
-import com.netflix.hystrix.HystrixCommandKey;
-import com.netflix.hystrix.HystrixCommandMetrics;
-import com.netflix.hystrix.HystrixCommandProperties;
-import com.netflix.hystrix.HystrixThreadPoolKey;
-import com.netflix.hystrix.HystrixThreadPoolMetrics;
-import com.netflix.hystrix.HystrixThreadPoolProperties;
+import com.netflix.hystrix.*;
 import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.netflix.hystrix.strategy.concurrency.HystrixConcurrencyStrategy;
 import com.netflix.hystrix.strategy.eventnotifier.HystrixEventNotifier;
@@ -44,10 +34,14 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     private final HystrixMetricsCollector collector;
     private final boolean exportProperties;
     private HystrixMetricsPublisher metricsPublisherDelegate;
+    private final boolean exportDeprecatedMetrics;
 
-    public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties, HystrixMetricsPublisher metricsPublisherDelegate) {
+    public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties,
+                                             boolean exportDeprecatedMetrics,
+                                             HystrixMetricsPublisher metricsPublisherDelegate) {
         this.collector = new HystrixMetricsCollector(namespace).register(registry);
         this.exportProperties = exportProperties;
+        this.exportDeprecatedMetrics = exportDeprecatedMetrics;
         this.metricsPublisherDelegate = metricsPublisherDelegate;
     }
 
@@ -61,7 +55,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
         return new HystrixPrometheusMetricsPublisherCommand(
                 collector, commandKey, commandGroupKey, metrics, circuitBreaker, properties, exportProperties,
-                delegate);
+                exportDeprecatedMetrics, delegate);
     }
 
     @Override
@@ -95,7 +89,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * @see CollectorRegistry#defaultRegistry
      */
     public static void register() {
-        register(null, CollectorRegistry.defaultRegistry);
+        register(null, CollectorRegistry.defaultRegistry, false, true);
     }
 
     /**
@@ -104,7 +98,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * registered by this method will NOT attempt to export properties.
      */
     public static void register(CollectorRegistry registry) {
-        register(null, registry);
+        register(null, registry, false, true);
     }
 
     /**
@@ -116,7 +110,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * @see CollectorRegistry#defaultRegistry
      */
     public static void register(String namespace) {
-        register(namespace, CollectorRegistry.defaultRegistry);
+        register(namespace, CollectorRegistry.defaultRegistry, false, true);
     }
 
     /**
@@ -125,6 +119,15 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * registered by this method will NOT attempt to export properties.
      */
     public static void register(String namespace, CollectorRegistry registry) {
+        register(namespace, registry, false, true);
+    }
+
+    /**
+     * Register an instance of this publisher, for the given namespace, with the
+     * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton.
+     */
+    public static void register(String namespace, CollectorRegistry registry, boolean exportProperties,
+                                boolean exportDeprecatedMetrics) {
 
         // memorize the registered plugins
         HystrixCommandExecutionHook commandExecutionHook = HystrixPlugins
@@ -140,7 +143,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
         // wrap the metrics publisher plugin
         HystrixPrometheusMetricsPublisher wrappedMetricsPublisher =
-                new HystrixPrometheusMetricsPublisher(namespace, registry, false, metricsPublisher);
+                new HystrixPrometheusMetricsPublisher(namespace, registry, exportProperties,
+                        exportDeprecatedMetrics, metricsPublisher);
 
         // reset all plugins
         HystrixPlugins.reset();
