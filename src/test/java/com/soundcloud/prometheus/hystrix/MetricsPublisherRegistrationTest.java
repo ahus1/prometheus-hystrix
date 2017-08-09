@@ -5,7 +5,6 @@ import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherDefault;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,16 +14,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class MetricsPublisherRegistrationTest {
 
-    @Before
-    public void setup() {
-        CollectorRegistry.defaultRegistry.clear();
-        Hystrix.reset();
-    }
-
     @After
     public void teardown() {
-        CollectorRegistry.defaultRegistry.clear();
         Hystrix.reset();
+        CollectorRegistry.defaultRegistry.clear();
     }
 
     @Test

@@ -1,17 +1,14 @@
 package com.soundcloud.prometheus.hystrix;
 
 import com.netflix.hystrix.Hystrix;
+import com.netflix.hystrix.exception.HystrixRuntimeException;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * @author Alexander Schwartz 2017
@@ -66,6 +63,61 @@ public class HystrixCommandTest {
     }
 
     @Test
+    public void shouldIncrementTotalsForSuccess() {
+        // given
+        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram");
+
+        // when
+        command.execute();
+
+        // then
+        assertThat(CollectorRegistry.defaultRegistry
+                .getSampleValue("exampleapp_hystrix_command_total",
+                        new String[]{"command_group", "command_name"},
+                        new String[]{"group_shouldIncrementCounterHistogram",
+                                "command_shouldIncrementCounterHistogram"}))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+
+        assertThat(CollectorRegistry.defaultRegistry
+                .getSampleValue("exampleapp_hystrix_command_error_total",
+                        new String[]{"command_group", "command_name"},
+                        new String[]{"group_shouldIncrementCounterHistogram",
+                                "command_shouldIncrementCounterHistogram"}))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(0);
+
+    }
+
+    @Test
+    public void shouldIncrementTotalsForFailure() {
+        // given
+        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram", true);
+
+        // when
+        assertThatThrownBy(() ->
+                command.execute()).isExactlyInstanceOf(HystrixRuntimeException.class);
+
+        // then
+        assertThat(CollectorRegistry.defaultRegistry
+                .getSampleValue("exampleapp_hystrix_command_total",
+                        new String[]{"command_group", "command_name"},
+                        new String[]{"group_shouldIncrementCounterHistogram",
+                                "command_shouldIncrementCounterHistogram"}))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+
+        assertThat(CollectorRegistry.defaultRegistry
+                .getSampleValue("exampleapp_hystrix_command_error_total",
+                        new String[]{"command_group", "command_name"},
+                        new String[]{"group_shouldIncrementCounterHistogram",
+                                "command_shouldIncrementCounterHistogram"}))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+
+    }
+
+    @Test
     public void shouldWorkWithTwoCommands() {
         // given
         TestHystrixCommand command1 = new TestHystrixCommand("cmd1");
@@ -88,25 +140,6 @@ public class HystrixCommandTest {
                         new String[]{"group_cmd2", "command_cmd2", "success"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
-    }
-
-    @Test
-    public void shouldWriteNiceMetricsOutput() throws IOException {
-        // given
-        TestHystrixCommand command = new TestHystrixCommand("any");
-
-        // when
-        command.execute();
-
-        // then
-        Writer writer = new FileWriter("target/sample.txt");
-        try {
-            TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
-            writer.flush();
-        } finally {
-            writer.close();
-        }
-        writer.close();
     }
 
 }

@@ -1,4 +1,14 @@
+# v3.2.0 - 09 August 2017
+
+* Aiming to publish the command metrics Prometheus style (#4):
+
+    * histograms _hystrix_command_event_total_ and _hystrix_command_latency_total_ replace existing gauges _hystrix_command_latency_execute_percentile_XXX_ and _hystrix_command_latency_execute_XXX_. 
+    * counters _hystrix_command_total_ and _hystrix_command_error_total_ to replace the _hystrix_command_error_percentage_ gauge.
+    * _hystrix_command_event_total_ contains per event counters with the event type as a label to replace _hystrix_command_count_XXX_.
+
+* Co-exist with other Hystrix plugins like Spring Sleuth (#5)
+
 # v3.1.0 - 23 July 2017
 
-Migrating from Gradle to Maven to have it in line with Prometheus Simple Client. 
-First release to Maven Central.
+* Migrating from Gradle to Maven to have it in line with Prometheus Simple Client. 
+* First release to Maven Central.
