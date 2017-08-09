@@ -1,4 +1,4 @@
-# v3.2.0 - ?? August 2017
+# v3.2.0 - 09 August 2017
 
 * Aiming to publish the command metrics Prometheus style (#4):
 
