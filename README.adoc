@@ -8,9 +8,8 @@ image:https://travis-ci.org/ahus1/prometheus-hystrix.svg?branch=master[]
 
 See the https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring[Netflix Metrics &amp; Monitoring] Wiki for more information.
 
-_This continues the work started at SoundCloud. It aims to achieve the following:_
+_This continues the work started at SoundCloud. The roadmap is the following:_
 
-* [.line-through]#Publish this library on Maven Central# DONE
 * Adopt best practices in https://prometheus.io/docs/practices/naming/[naming metrics].
 * Support ongoing development
 * Long term goal: merge this project with https://github.com/prometheus/client_java[Prometheus Java Simple Client].
