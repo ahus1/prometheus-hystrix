@@ -1,15 +1,12 @@
 /**
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  * <p/>
  * http://www.apache.org/licenses/LICENSE-2.0
  * <p/>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package com.soundcloud.prometheus.hystrix;
 
@@ -17,14 +14,19 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of a Prometheus Collector for Hystrix metrics.
@@ -47,8 +49,7 @@ public class HystrixMetricsCollector extends Collector {
     }
 
     public void addGauge(String subsystem, String metric, String helpDoc,
-                         Map<String, String> labels, Callable<Number> value) {
-
+        Map<String, String> labels, Callable<Number> value) {
         lock.writeLock().lock();
         try {
             Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
@@ -60,16 +61,16 @@ public class HystrixMetricsCollector extends Collector {
     }
 
     public Histogram.Child addHistogram(String subsystem, String metric, String helpDoc,
-                                        Map<String, String> labels) {
+        Map<String, String> labels) {
         lock.writeLock().lock();
         try {
             String name = name(subsystem, metric);
             Histogram histogram = histograms.get(name);
-            if(histogram == null) {
+            if (histogram == null) {
                 histogram = Histogram.build().name(name).help(helpDoc)
-                        .labelNames(labels.keySet().toArray(new String[]{}))
-                        .exponentialBuckets(0.001, 1.31, 30)
-                        .create();
+                    .labelNames(labels.keySet().toArray(new String[]{}))
+                    .exponentialBuckets(0.001, 1.31, 30)
+                    .create();
                 histogram.register(registry);
                 histograms.put(name, histogram);
             }
@@ -84,9 +85,9 @@ public class HystrixMetricsCollector extends Collector {
         try {
             String name = name(subsystem, metric);
             Counter counter = counters.get(name);
-            if(counter == null) {
+            if (counter == null) {
                 counter = Counter.build().name(name(subsystem, metric)).help(helpDoc).
-                        labelNames(labels.keySet().toArray(new String[]{})).create();
+                    labelNames(labels.keySet().toArray(new String[]{})).create();
                 counter.register(registry);
                 counters.put(name, counter);
             }
@@ -98,8 +99,8 @@ public class HystrixMetricsCollector extends Collector {
 
     private String name(String subsystem, String metric) {
         return (namespace != null)
-                ? namespace + "_" + subsystem + "_" + metric
-                : subsystem + "_" + metric;
+            ? namespace + "_" + subsystem + "_" + metric
+            : subsystem + "_" + metric;
     }
 
     @Override
@@ -108,10 +109,10 @@ public class HystrixMetricsCollector extends Collector {
         try {
             List<MetricFamilySamples> samples = new LinkedList<>();
             samples.addAll(gauges.entrySet().stream()
-                    .map(e -> e.getKey().toSamples(e.getValue()))
-                    .collect(Collectors.toList()));
+                .map(e -> e.getKey().toSamples(e.getValue()))
+                .collect(Collectors.toList()));
             Enumeration<MetricFamilySamples> enumeration = registry.metricFamilySamples();
-            while(enumeration.hasMoreElements()) {
+            while (enumeration.hasMoreElements()) {
                 samples.add(enumeration.nextElement());
             }
             return samples;
@@ -132,9 +133,9 @@ public class HystrixMetricsCollector extends Collector {
 
         public MetricFamilySamples toSamples(List<Value> values) {
             return new MetricFamilySamples(name, Type.GAUGE, helpDoc, values.stream()
-                    .map(v -> v.toSample(name))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList()));
+                .map(v -> v.toSample(name))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList()));
         }
 
         @Override
