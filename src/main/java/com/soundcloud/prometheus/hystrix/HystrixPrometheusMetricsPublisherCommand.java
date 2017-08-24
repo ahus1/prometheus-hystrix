@@ -35,7 +35,7 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
 
-    private final Map<String, String> labels;
+    private Map<String, String> labels = new TreeMap<>();
     private final boolean exportProperties;
 
     private final HystrixCommandMetrics metrics;
@@ -51,7 +51,9 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         HystrixCommandMetrics metrics, HystrixCircuitBreaker circuitBreaker,
         HystrixCommandProperties properties, boolean exportProperties, boolean exportDeprecatedMetrics,
         HystrixMetricsPublisherCommand delegate) {
-        this.labels = prepareLabels(commandKey, commandGroupKey);
+        labels
+            .put(HystrixMetricsConstants.COMMAND_GROUP, (commandGroupKey != null) ? commandGroupKey.name() : "default");
+        labels.put(HystrixMetricsConstants.COMMAND_NAME, commandKey.name());
 
         this.exportProperties = exportProperties;
 
@@ -62,14 +64,6 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         this.commandKey = commandKey;
         this.delegate = delegate;
         this.exportDeprecatedMetrics = exportDeprecatedMetrics;
-    }
-
-    protected Map<String, String> prepareLabels(HystrixCommandKey commandKey, HystrixCommandGroupKey commandGroupKey) {
-        Map<String, String> labels = new TreeMap<>();
-        labels
-            .put(HystrixMetricsConstants.COMMAND_GROUP, (commandGroupKey != null) ? commandGroupKey.name() : "default");
-        labels.put(HystrixMetricsConstants.COMMAND_NAME, commandKey.name());
-        return labels;
     }
 
     @Override
