@@ -3,12 +3,14 @@ package com.soundcloud.prometheus.hystrix;
 import com.netflix.hystrix.Hystrix;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.io.Writer;
 
 /**
@@ -25,21 +27,39 @@ public class MetricsListTest {
     @Test
     public void shouldWriteNiceMetricsOutput() throws IOException {
         // given
-        HystrixPrometheusMetricsPublisher.register(null, CollectorRegistry.defaultRegistry, false, false);
+        HystrixPrometheusMetricsPublisher.builder().shouldExportDeprecatedMetrics(false).buildAndRegister();
         TestHystrixCommand command = new TestHystrixCommand("any");
 
         // when
         command.execute();
 
         // then
-        Writer writer = new FileWriter("target/sample.txt");
+        try (Writer writer = new FileWriter("target/sample.txt")) {
+            TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+            writer.flush();
+        }
+    }
+
+    @Test
+    public void shouldHaveExponentialBuckets() throws IOException {
+        // given
+        HystrixPrometheusMetricsPublisher.builder().withExponentialBuckets().buildAndRegister();
+        TestHystrixCommand command = new TestHystrixCommand("any");
+
+        // when
+        command.execute();
+
+        // then
+        StringWriter writer = new StringWriter();
         try {
             TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
             writer.flush();
         } finally {
             writer.close();
         }
-        writer.close();
+        String result = writer.toString();
+        Assertions.assertThat(result).contains("le=\"0.001\"");
+        Assertions.assertThat(result).contains("le=\"2.5169093494697568\"");
     }
 
 }

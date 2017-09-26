@@ -31,15 +31,118 @@ import io.prometheus.client.CollectorRegistry;
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
+    private enum MetricsType { EXPONENTIAL, DEFAULT }
+
+    /** Build an instance {@link HystrixPrometheusMetricsPublisher}. Use {@link #buildAndRegister()} to finalize. */
+    public static class Builder {
+        private String namespace = null;
+        private CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+        private boolean exportProperties = false;
+        private boolean exportDeprecatedMetrics = true;
+
+        private MetricsType metrics = MetricsType.DEFAULT;
+
+        private double exponentialStart = 0.001;
+        private double exponentialFactor = 1.31;
+        private int exponentialCount = 30;
+
+        private Builder() {
+        }
+
+        public void buildAndRegister() {
+            // memorize the registered plugins
+            HystrixCommandExecutionHook commandExecutionHook = HystrixPlugins
+                    .getInstance().getCommandExecutionHook();
+            HystrixEventNotifier eventNotifier = HystrixPlugins.getInstance()
+                    .getEventNotifier();
+            HystrixMetricsPublisher metricsPublisher = HystrixPlugins.getInstance()
+                    .getMetricsPublisher();
+            HystrixPropertiesStrategy propertiesStrategy = HystrixPlugins.getInstance()
+                    .getPropertiesStrategy();
+            HystrixConcurrencyStrategy concurrencyStrategy = HystrixPlugins.getInstance()
+                    .getConcurrencyStrategy();
+
+            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace, builder -> {
+                if(metrics == MetricsType.EXPONENTIAL) {
+                    builder.exponentialBuckets(exponentialStart, exponentialFactor, exponentialCount);
+                } else if(metrics == MetricsType.DEFAULT) {
+                    // nothing to do
+                } else {
+                    throw new IllegalStateException("unknown enum state " + metrics);
+                }
+            }).register(registry);
+
+            // wrap the metrics publisher plugin
+            HystrixPrometheusMetricsPublisher wrappedMetricsPublisher =
+                    new HystrixPrometheusMetricsPublisher(exportProperties,
+                            exportDeprecatedMetrics, collector, metricsPublisher);
+
+            // reset all plugins
+            HystrixPlugins.reset();
+
+            // set previous values for all plugins ...
+            HystrixPlugins.getInstance().registerConcurrencyStrategy(concurrencyStrategy);
+            HystrixPlugins.getInstance().registerCommandExecutionHook(commandExecutionHook);
+            HystrixPlugins.getInstance().registerEventNotifier(eventNotifier);
+            HystrixPlugins.getInstance().registerPropertiesStrategy(propertiesStrategy);
+
+            // ... except for the metrics publisher that will now be wrapped
+            HystrixPlugins.getInstance().registerMetricsPublisher(wrappedMetricsPublisher);
+        }
+
+        public Builder withNamespace(String namespace) {
+            this.namespace = namespace;
+            return this;
+        }
+
+        public Builder withRegistry(CollectorRegistry registry) {
+            this.registry = registry;
+            return this;
+        }
+
+        public Builder shouldExportProperties(boolean exportProperties) {
+            this.exportProperties = exportProperties;
+            return this;
+        }
+
+        public Builder shouldExportDeprecatedMetrics(boolean exportDeprecatedMetrics) {
+            this.exportDeprecatedMetrics = exportDeprecatedMetrics;
+            return this;
+        }
+
+        public Builder withExponentialBuckets(double start, double factor, int count) {
+            this.metrics = MetricsType.EXPONENTIAL;
+            this.exponentialStart = start;
+            this.exponentialFactor = factor;
+            this.exponentialCount = count;
+            return this;
+        }
+
+        public Builder withExponentialBuckets() {
+            this.metrics = MetricsType.EXPONENTIAL;
+            return this;
+        }
+
+        public Builder withDefaultBuckets() {
+            this.metrics = MetricsType.DEFAULT;
+            return this;
+        }
+    }
+
+    public static HystrixPrometheusMetricsPublisher.Builder builder() {
+        return new Builder();
+    }
+
     private final HystrixMetricsCollector collector;
     private final boolean exportProperties;
-    private HystrixMetricsPublisher metricsPublisherDelegate;
+    private final HystrixMetricsPublisher metricsPublisherDelegate;
     private final boolean exportDeprecatedMetrics;
 
-    public HystrixPrometheusMetricsPublisher(String namespace, CollectorRegistry registry, boolean exportProperties,
+    private HystrixPrometheusMetricsPublisher(boolean exportProperties,
                                              boolean exportDeprecatedMetrics,
+                                             HystrixMetricsCollector collector,
                                              HystrixMetricsPublisher metricsPublisherDelegate) {
-        this.collector = new HystrixMetricsCollector(namespace).register(registry);
+        this.collector = collector;
         this.exportProperties = exportProperties;
         this.exportDeprecatedMetrics = exportDeprecatedMetrics;
         this.metricsPublisherDelegate = metricsPublisherDelegate;
@@ -89,7 +192,8 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * @see CollectorRegistry#defaultRegistry
      */
     public static void register() {
-        register(null, CollectorRegistry.defaultRegistry, false, true);
+        HystrixPrometheusMetricsPublisher.builder()
+                .buildAndRegister();
     }
 
     /**
@@ -98,7 +202,9 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * registered by this method will NOT attempt to export properties.
      */
     public static void register(CollectorRegistry registry) {
-        register(null, registry, false, true);
+        HystrixPrometheusMetricsPublisher.builder()
+                .withRegistry(registry)
+                .buildAndRegister();
     }
 
     /**
@@ -110,7 +216,9 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * @see CollectorRegistry#defaultRegistry
      */
     public static void register(String namespace) {
-        register(namespace, CollectorRegistry.defaultRegistry, false, true);
+        HystrixPrometheusMetricsPublisher.builder()
+                .withNamespace(namespace)
+                .buildAndRegister();
     }
 
     /**
@@ -119,43 +227,25 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      * registered by this method will NOT attempt to export properties.
      */
     public static void register(String namespace, CollectorRegistry registry) {
-        register(namespace, registry, false, true);
+        HystrixPrometheusMetricsPublisher.builder()
+                .withNamespace(namespace)
+                .withRegistry(registry)
+                .buildAndRegister();
     }
 
     /**
      * Register an instance of this publisher, for the given namespace, with the
      * {@link com.netflix.hystrix.strategy.HystrixPlugins} singleton.
+     * Please use the builder instead of this method with so many parameters.
      */
+    @Deprecated
     public static void register(String namespace, CollectorRegistry registry, boolean exportProperties,
                                 boolean exportDeprecatedMetrics) {
-
-        // memorize the registered plugins
-        HystrixCommandExecutionHook commandExecutionHook = HystrixPlugins
-                .getInstance().getCommandExecutionHook();
-        HystrixEventNotifier eventNotifier = HystrixPlugins.getInstance()
-                .getEventNotifier();
-        HystrixMetricsPublisher metricsPublisher = HystrixPlugins.getInstance()
-                .getMetricsPublisher();
-        HystrixPropertiesStrategy propertiesStrategy = HystrixPlugins.getInstance()
-                .getPropertiesStrategy();
-        HystrixConcurrencyStrategy concurrencyStrategy = HystrixPlugins.getInstance()
-                .getConcurrencyStrategy();
-
-        // wrap the metrics publisher plugin
-        HystrixPrometheusMetricsPublisher wrappedMetricsPublisher =
-                new HystrixPrometheusMetricsPublisher(namespace, registry, exportProperties,
-                        exportDeprecatedMetrics, metricsPublisher);
-
-        // reset all plugins
-        HystrixPlugins.reset();
-
-        // set previous values for all plugins ...
-        HystrixPlugins.getInstance().registerConcurrencyStrategy(concurrencyStrategy);
-        HystrixPlugins.getInstance().registerCommandExecutionHook(commandExecutionHook);
-        HystrixPlugins.getInstance().registerEventNotifier(eventNotifier);
-        HystrixPlugins.getInstance().registerPropertiesStrategy(propertiesStrategy);
-
-        // ... except for the metrics publisher that will now be wrapped
-        HystrixPlugins.getInstance().registerMetricsPublisher(wrappedMetricsPublisher);
+        HystrixPrometheusMetricsPublisher.builder()
+                .withNamespace(namespace)
+                .withRegistry(registry)
+                .shouldExportProperties(exportProperties)
+                .shouldExportDeprecatedMetrics(exportDeprecatedMetrics)
+                .buildAndRegister();
     }
 }

@@ -24,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -39,11 +40,13 @@ public class HystrixMetricsCollector extends Collector {
     private final Map<String, Counter> counters = new HashMap<>();
 
     private final String namespace;
+    private Consumer<Histogram.Builder> histogramParameterizer;
 
     private CollectorRegistry registry = new CollectorRegistry();
 
-    public HystrixMetricsCollector(String namespace) {
+    public HystrixMetricsCollector(String namespace, Consumer<Histogram.Builder> histogramParameterizer) {
         this.namespace = namespace;
+        this.histogramParameterizer = histogramParameterizer;
     }
 
     public void addGauge(String subsystem, String metric, String helpDoc,
@@ -65,11 +68,11 @@ public class HystrixMetricsCollector extends Collector {
         try {
             String name = name(subsystem, metric);
             Histogram histogram = histograms.get(name);
-            if(histogram == null) {
-                histogram = Histogram.build().name(name).help(helpDoc)
-                        .labelNames(labels.keySet().toArray(new String[]{}))
-                        .exponentialBuckets(0.001, 1.31, 30)
-                        .create();
+            if (histogram == null) {
+                Histogram.Builder histogramBuilder = Histogram.build().name(name).help(helpDoc)
+                        .labelNames(labels.keySet().toArray(new String[]{}));
+                histogramParameterizer.accept(histogramBuilder);
+                histogram = histogramBuilder.create();
                 histogram.register(registry);
                 histograms.put(name, histogram);
             }
@@ -84,7 +87,7 @@ public class HystrixMetricsCollector extends Collector {
         try {
             String name = name(subsystem, metric);
             Counter counter = counters.get(name);
-            if(counter == null) {
+            if (counter == null) {
                 counter = Counter.build().name(name(subsystem, metric)).help(helpDoc).
                         labelNames(labels.keySet().toArray(new String[]{})).create();
                 counter.register(registry);
@@ -111,7 +114,7 @@ public class HystrixMetricsCollector extends Collector {
                     .map(e -> e.getKey().toSamples(e.getValue()))
                     .collect(Collectors.toList()));
             Enumeration<MetricFamilySamples> enumeration = registry.metricFamilySamples();
-            while(enumeration.hasMoreElements()) {
+            while (enumeration.hasMoreElements()) {
                 samples.add(enumeration.nextElement());
             }
             return samples;

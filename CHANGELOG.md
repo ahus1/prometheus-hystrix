@@ -1,3 +1,8 @@
+# v3.3.0 - unreleased
+
+* Command Histograms can now be configured, and the buckets are now the default library buckets as provided by Hystrix (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, 10) (#9)
+* The publisher can now be configured using a builder pattern using `HystrixPrometheusMetricsPublisher.builder()/* ... */.buildAndRegister()`
+
 # v3.2.0 - 09 August 2017
 
 * Aiming to publish the command metrics Prometheus style (#4):
