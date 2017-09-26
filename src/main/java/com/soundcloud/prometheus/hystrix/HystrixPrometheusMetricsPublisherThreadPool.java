@@ -61,11 +61,11 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         addGauge("queue_size", currentStateDoc, metrics::getCurrentQueueSize);
 
         String rollDoc = "Rolling count partitioned by pool_name.";
-        addGauge("rolling_max_active_threads", rollDoc, metrics::getRollingMaxActiveThreads);
-        addGauge("rolling_count_threads_executed", rollDoc, metrics::getRollingCountThreadsExecuted);
+        addGauge("rolling_active_threads_max", rollDoc, metrics::getRollingMaxActiveThreads);
+        addGauge("rolling_threads_executed_count", rollDoc, metrics::getRollingCountThreadsExecuted);
 
         String totalDoc = "Cumulative count partitioned by pool_name.";
-        addGauge("count_threads_executed", totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        addGauge("threads_executed_count", totalDoc, metrics::getCumulativeCountThreadsExecuted);
 
         if (exportProperties) {
             String doc = "Configuration property partitioned by pool_name.";
