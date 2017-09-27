@@ -30,6 +30,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
     private final Map<String, String> labels;
     private final boolean exportProperties;
+    private final boolean exportDeprecatedMetrics;
 
     private final HystrixThreadPoolMetrics metrics;
     private final HystrixThreadPoolProperties properties;
@@ -38,7 +39,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
     public HystrixPrometheusMetricsPublisherThreadPool(
             HystrixMetricsCollector collector, HystrixThreadPoolKey key, HystrixThreadPoolMetrics metrics,
-            HystrixThreadPoolProperties properties, boolean exportProperties,
+            HystrixThreadPoolProperties properties, boolean exportProperties, boolean exportDeprecatedMetrics,
             HystrixMetricsPublisherThreadPool delegate) {
 
         this.metrics = metrics;
@@ -46,6 +47,7 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         this.properties = properties;
         this.exportProperties = exportProperties;
         this.labels = Collections.singletonMap("pool_name", key.name());
+        this.exportDeprecatedMetrics = exportDeprecatedMetrics;
         this.delegate = delegate;
     }
 
@@ -61,14 +63,21 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         addGauge("queue_size", currentStateDoc, metrics::getCurrentQueueSize);
 
         String rollDoc = "Rolling count partitioned by pool_name.";
-        addGauge("rolling_max_active_threads", "DEPRECATED: " + rollDoc, metrics::getRollingMaxActiveThreads);
+        if(exportDeprecatedMetrics) {
+            addGauge("rolling_max_active_threads", "DEPRECATED: " + rollDoc, metrics::getRollingMaxActiveThreads);
+        }
         addGauge("rolling_active_threads_max", rollDoc, metrics::getRollingMaxActiveThreads);
-        addGauge("rolling_count_threads_executed", "DEPRECATED: " + rollDoc, metrics::getRollingCountThreadsExecuted);
+
+        if(exportDeprecatedMetrics) {
+            addGauge("rolling_count_threads_executed", "DEPRECATED: " + rollDoc, metrics::getRollingCountThreadsExecuted);
+        }
         addGauge("rolling_threads_executed_count", rollDoc, metrics::getRollingCountThreadsExecuted);
 
         String totalDoc = "Cumulative count partitioned by pool_name.";
-        addGauge("count_threads_executed", "DEPRECATED: " + totalDoc, metrics::getCumulativeCountThreadsExecuted);
-        addGauge("threads_executed_count", totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        if(exportDeprecatedMetrics) {
+            addGauge("count_threads_executed", "DEPRECATED: " + totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        }
+        addGauge("threads_executed_total", totalDoc, metrics::getCumulativeCountThreadsExecuted);
 
         if (exportProperties) {
             String doc = "Configuration property partitioned by pool_name.";

@@ -2,6 +2,7 @@
 
 * Command Histograms can now be configured, and the buckets are now the default library buckets as provided by Hystrix (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, 10) (#9)
 * The publisher can now be configured using a builder pattern using `HystrixPrometheusMetricsPublisher.builder()/* ... */.buildAndRegister()`
+* Rename _rolling_max_active_threads_ to _rolling_active_threads_max_, _rolling_count_threads_executed_ to _rolling_threads_executed_count_, _count_threads_executed_ to _threads_executed_total_.
 
 # v3.2.0 - 09 August 2017
 
