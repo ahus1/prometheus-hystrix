@@ -62,4 +62,48 @@ public class MetricsListTest {
         Assertions.assertThat(result).contains("le=\"2.5169093494697568\"");
     }
 
+    @Test
+    public void shouldHaveLinearBuckets() throws IOException {
+        // given
+        HystrixPrometheusMetricsPublisher.builder().withLinearBuckets(0.1, 0.2, 3).buildAndRegister();
+        TestHystrixCommand command = new TestHystrixCommand("any");
+
+        // when
+        command.execute();
+
+        // then
+        StringWriter writer = new StringWriter();
+        try {
+            TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+            writer.flush();
+        } finally {
+            writer.close();
+        }
+        String result = writer.toString();
+        Assertions.assertThat(result).contains("le=\"0.1\"");
+        Assertions.assertThat(result).contains("le=\"0.5\"");
+    }
+
+    @Test
+    public void shouldHaveDistinctBuckets() throws IOException {
+        // given
+        HystrixPrometheusMetricsPublisher.builder().withBuckets(0.1, 1.0).buildAndRegister();
+        TestHystrixCommand command = new TestHystrixCommand("any");
+
+        // when
+        command.execute();
+
+        // then
+        StringWriter writer = new StringWriter();
+        try {
+            TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+            writer.flush();
+        } finally {
+            writer.close();
+        }
+        String result = writer.toString();
+        Assertions.assertThat(result).contains("le=\"0.1\"");
+        Assertions.assertThat(result).contains("le=\"1.0\"");
+    }
+
 }

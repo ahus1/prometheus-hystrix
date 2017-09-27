@@ -31,7 +31,7 @@ import io.prometheus.client.CollectorRegistry;
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
-    private enum MetricsType { EXPONENTIAL, DEFAULT }
+    private enum MetricsType { EXPONENTIAL, LINEAR, DISTINCT, DEFAULT }
 
     /** Build an instance {@link HystrixPrometheusMetricsPublisher}. Use {@link #buildAndRegister()} to finalize. */
     public static class Builder {
@@ -45,6 +45,12 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
         private double exponentialStart = 0.001;
         private double exponentialFactor = 1.31;
         private int exponentialCount = 30;
+
+        private double linearStart;
+        private double linearWidth;
+        private int linearCount;
+
+        private double[] distinctBuckets;
 
         private Builder() {
         }
@@ -65,6 +71,10 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace, builder -> {
                 if(metrics == MetricsType.EXPONENTIAL) {
                     builder.exponentialBuckets(exponentialStart, exponentialFactor, exponentialCount);
+                } else if(metrics == MetricsType.LINEAR) {
+                    builder.linearBuckets(linearStart, linearWidth, linearCount);
+                } else if(metrics == MetricsType.DISTINCT) {
+                    builder.buckets(distinctBuckets);
                 } else if(metrics == MetricsType.DEFAULT) {
                     // nothing to do
                 } else {
@@ -115,6 +125,20 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             this.exponentialStart = start;
             this.exponentialFactor = factor;
             this.exponentialCount = count;
+            return this;
+        }
+
+        public Builder withBuckets(double... buckets) {
+            this.metrics = MetricsType.DISTINCT;
+            this.distinctBuckets = buckets;
+            return this;
+        }
+
+        public Builder withLinearBuckets(double start, double width, int count) {
+            this.metrics = MetricsType.LINEAR;
+            this.linearStart = start;
+            this.linearWidth= width;
+            this.linearCount = count;
             return this;
         }
 
