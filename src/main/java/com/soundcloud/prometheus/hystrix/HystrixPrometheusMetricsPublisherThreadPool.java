@@ -64,14 +64,13 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
 
         String rollDoc = "Rolling count partitioned by pool_name.";
         if(exportDeprecatedMetrics) {
-            addGauge("rolling_max_active_threads", "DEPRECATED: " + rollDoc, metrics::getRollingMaxActiveThreads);
+            addGauge("rolling_max_active_threads", "DEPRECATED, use rolling_active_threads_max instead: " + rollDoc, metrics::getRollingMaxActiveThreads);
         }
         addGauge("rolling_active_threads_max", rollDoc, metrics::getRollingMaxActiveThreads);
 
         if(exportDeprecatedMetrics) {
-            addGauge("rolling_count_threads_executed", "DEPRECATED: " + rollDoc, metrics::getRollingCountThreadsExecuted);
+            addGauge("rolling_count_threads_executed", "DEPRECATED, use rate(threads_executed_total) instead: " + rollDoc, metrics::getRollingCountThreadsExecuted);
         }
-        addGauge("rolling_threads_executed_count", rollDoc, metrics::getRollingCountThreadsExecuted);
 
         String totalDoc = "Cumulative count partitioned by pool_name.";
         if(exportDeprecatedMetrics) {
