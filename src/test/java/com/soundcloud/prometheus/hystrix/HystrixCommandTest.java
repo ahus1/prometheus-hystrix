@@ -1,6 +1,7 @@
 package com.soundcloud.prometheus.hystrix;
 
 import com.netflix.hystrix.Hystrix;
+import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
@@ -60,6 +61,54 @@ public class HystrixCommandTest {
                                 "command_shouldIncrementCounterHistogram"}))
                 .describedAs("counter of all executions in the histogram")
                 .isEqualTo(1);
+    }
+
+    @Test
+    public void shouldNotIncrementCounterHistogramWhenShortCircuited() {
+        // given
+        HystrixCommandProperties.Setter commandProperties = HystrixCommandProperties.defaultSetter()
+            .withCircuitBreakerEnabled(true)
+            .withCircuitBreakerForceOpen(true);
+
+        // when
+        for (int i = 0; i < 10; i++) {
+            TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", false, commandProperties);
+            assertThatThrownBy(() -> command.execute())
+                .isExactlyInstanceOf(HystrixRuntimeException.class);
+        }
+
+        // then
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_execute_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
+            ))
+            .describedAs("counter of all executions in the histogram")
+            .isEqualTo(0);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_execute_seconds_sum",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
+            ))
+            .describedAs("sum of all execution latencies in the histogram")
+            .isEqualTo(0);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_total_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
+            ))
+            .describedAs("counter of all executions in the histogram")
+            .isEqualTo(0);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_total_seconds_sum",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
+            ))
+            .describedAs("sum of all total latencies in the histogram")
+            .isEqualTo(0);
     }
 
     @Test
