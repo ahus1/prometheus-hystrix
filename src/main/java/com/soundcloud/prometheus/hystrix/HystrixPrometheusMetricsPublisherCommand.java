@@ -162,8 +162,10 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
                 .subscribe(hystrixCommandCompletion -> {
-                    histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
-                    histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                    if (hystrixCommandCompletion.didCommandExecute()) {
+                        histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
+                        histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                    }
                     for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
                         int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
                         if (count > 0) {
