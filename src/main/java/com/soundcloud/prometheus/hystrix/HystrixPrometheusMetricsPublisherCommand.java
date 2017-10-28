@@ -19,6 +19,8 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -28,6 +30,8 @@ import java.util.concurrent.Callable;
  * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
  */
 public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsPublisherCommand {
+
+    private final static Logger LOG = LoggerFactory.getLogger(HystrixPrometheusMetricsPublisherCommand.class);
 
     private final Map<String, String> labels;
     private final boolean exportProperties;
@@ -162,15 +166,37 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
                 .subscribe(hystrixCommandCompletion -> {
-                    if (hystrixCommandCompletion.didCommandExecute()) {
-                        histogramLatencyTotal.observe(hystrixCommandCompletion.getTotalLatency() / 1000d);
+                    /*
+                     our assumptions about latency as returned by hystrixCommandCompletion:
+                     # a latency of >= 0 indicates that this the execution occurred.
+                     # a latency of == -1 indicates that the execution didn't occur (default in execution result)
+                     # a latency of < -1 indicates some clock problems.
+
+                     We will only count executions, and ignore non-executions with a value of -1.
+                     Latencies of < -1 are ignored as they will decrement the counts, and Prometheus will
+                     take this as a reset of the counter, therefore this should be avoided by all means.
+                     */
+                    long totalLatency = hystrixCommandCompletion.getTotalLatency();
+                    if (totalLatency >= 0) {
+                        histogramLatencyTotal.observe(totalLatency / 1000d);
+                    } else if (totalLatency < -1) {
+                        LOG.warn("received negative totalLatency, event not not counted. " +
+                                        "This indicates a clock skew? {}",
+                                hystrixCommandCompletion);
+                    }
+                    long executionLatency = hystrixCommandCompletion.getExecutionLatency();
+                    if (executionLatency >= 0) {
                         histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                    } else if (executionLatency < -1) {
+                        LOG.warn("received negative executionLatency, event not not counted. " +
+                                        "This indicates a clock skew? {}",
+                                hystrixCommandCompletion);
                     }
                     for (HystrixEventType hystrixEventType : HystrixEventType.values()) {
                         int count = hystrixCommandCompletion.getEventCounts().getCount(hystrixEventType);
                         if (count > 0) {
                             switch (hystrixEventType) {
-                                /** this list is derived from {@link HystrixCommandMetrics.HealthCounts.plus} */
+                                /* this list is derived from {@link HystrixCommandMetrics.HealthCounts.plus} */
                                 case FAILURE:
                                 case TIMEOUT:
                                 case THREAD_POOL_REJECTED:

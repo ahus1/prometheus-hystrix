@@ -10,35 +10,43 @@ import com.netflix.hystrix.HystrixCommandProperties;
  */
 public class TestHystrixCommand extends HystrixCommand<Integer> {
 
-    private final boolean shouldFail;
+    private boolean willFail;
+    private Long willWait;
 
     public TestHystrixCommand(String key) {
-        this(key, false);
+        this(key, null);
     }
 
-    public TestHystrixCommand(String key, boolean shouldFail) {
-        this(key, shouldFail, null);
-    }
-
-    public TestHystrixCommand(String key, boolean shouldFail, HystrixCommandProperties.Setter commandProperties) {
+    public TestHystrixCommand(String key, HystrixCommandProperties.Setter commandProperties) {
         this(
-            Setter
-                .withGroupKey(HystrixCommandGroupKey.Factory.asKey("group_" + key))
-                .andCommandKey(HystrixCommandKey.Factory.asKey("command_" + key))
-                .andCommandPropertiesDefaults(commandProperties),
-            shouldFail
+                Setter
+                        .withGroupKey(HystrixCommandGroupKey.Factory.asKey("group_" + key))
+                        .andCommandKey(HystrixCommandKey.Factory.asKey("command_" + key))
+                        .andCommandPropertiesDefaults(commandProperties)
         );
     }
 
-    public TestHystrixCommand(Setter setter, boolean shouldFail) {
+    public TestHystrixCommand(Setter setter) {
         super(setter);
-        this.shouldFail = shouldFail;
+    }
+
+    public TestHystrixCommand willFail() {
+        this.willFail = true;
+        return this;
+    }
+
+    public TestHystrixCommand willWait(long millis) {
+        this.willWait = millis;
+        return this;
     }
 
     @Override
     protected Integer run() throws Exception {
-        if (shouldFail) {
+        if (willFail) {
             throw new RuntimeException();
+        }
+        if (willWait != null) {
+            Thread.sleep(willWait);
         }
         return 1;
     }

@@ -67,14 +67,14 @@ public class HystrixCommandTest {
     public void shouldNotIncrementCounterHistogramWhenShortCircuited() {
         // given
         HystrixCommandProperties.Setter commandProperties = HystrixCommandProperties.defaultSetter()
-            .withCircuitBreakerEnabled(true)
-            .withCircuitBreakerForceOpen(true);
+                .withCircuitBreakerEnabled(true)
+                .withCircuitBreakerForceOpen(true);
 
         // when
         for (int i = 0; i < 10; i++) {
-            TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", false, commandProperties);
+            TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", commandProperties);
             assertThatThrownBy(() -> command.execute())
-                .isExactlyInstanceOf(HystrixRuntimeException.class);
+                    .isExactlyInstanceOf(HystrixRuntimeException.class);
         }
 
         // then
@@ -82,33 +82,90 @@ public class HystrixCommandTest {
                 "exampleapp_hystrix_command_latency_execute_seconds_count",
                 new String[]{"command_group", "command_name"},
                 new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
-            ))
-            .describedAs("counter of all executions in the histogram")
-            .isEqualTo(0);
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(0);
 
         assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
                 "exampleapp_hystrix_command_latency_execute_seconds_sum",
                 new String[]{"command_group", "command_name"},
                 new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
-            ))
-            .describedAs("sum of all execution latencies in the histogram")
-            .isEqualTo(0);
+        ))
+                .describedAs("sum of all execution latencies in the histogram")
+                .isEqualTo(0);
 
         assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
                 "exampleapp_hystrix_command_latency_total_seconds_count",
                 new String[]{"command_group", "command_name"},
                 new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
-            ))
-            .describedAs("counter of all executions in the histogram")
-            .isEqualTo(0);
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(0);
 
         assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
                 "exampleapp_hystrix_command_latency_total_seconds_sum",
                 new String[]{"command_group", "command_name"},
                 new String[]{"group_shouldNotIncrementCounterHistogram", "command_shouldNotIncrementCounterHistogram"}
-            ))
-            .describedAs("sum of all total latencies in the histogram")
-            .isEqualTo(0);
+        ))
+                .describedAs("sum of all total latencies in the histogram")
+                .isEqualTo(0);
+    }
+
+    @Test
+    public void shouldIncrementCounterHistogramOnCommandsRunIntoTimeout() {
+        // given
+        HystrixCommandProperties.Setter commandProperties = HystrixCommandProperties.defaultSetter()
+                .withExecutionTimeoutEnabled(true)
+                .withExecutionTimeoutInMilliseconds(1);
+
+        // when
+        TestHystrixCommand command = new TestHystrixCommand("shouldCountCommandsRunIntoTimeout", commandProperties).willWait(1000);
+        assertThatThrownBy(() -> command.execute())
+                .isExactlyInstanceOf(HystrixRuntimeException.class);
+
+        // then
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_execute_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldCountCommandsRunIntoTimeout", "command_shouldCountCommandsRunIntoTimeout"}
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_total_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_shouldCountCommandsRunIntoTimeout", "command_shouldCountCommandsRunIntoTimeout"}
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+    }
+
+    @Test
+    public void shouldIncrementCounterHistogramForExecuteButNotLatencyOnCancelledCommand() {
+        // given
+        HystrixCommandProperties.Setter commandProperties = HystrixCommandProperties.defaultSetter();
+
+        TestHystrixCommand command = new TestHystrixCommand("cancelledCommand",
+                commandProperties).willWait(10);
+        command.queue().cancel(true);
+
+        // then
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_execute_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_cancelledCommand", "command_cancelledCommand"}
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(1);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
+                "exampleapp_hystrix_command_latency_total_seconds_count",
+                new String[]{"command_group", "command_name"},
+                new String[]{"group_cancelledCommand", "command_cancelledCommand"}
+        ))
+                .describedAs("counter of all executions in the histogram")
+                .isEqualTo(0);
     }
 
     @Test
@@ -141,7 +198,7 @@ public class HystrixCommandTest {
     @Test
     public void shouldIncrementTotalsForFailure() {
         // given
-        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram", true);
+        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram").willFail();
 
         // when
         assertThatThrownBy(() ->
