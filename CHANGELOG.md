@@ -1,3 +1,7 @@
+# v3.3.1 - 30 October 2017
+
+* non-executed commands (i.e. due to active circuit breakers) should not update histograms (#12)
+
 # v3.3.0 - 02 October 2017
 
 * Command Histograms can now be configured, and the buckets are now the default library buckets as provided by Hystrix (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1, 2.5, 5, 7.5, 10) (#9)
