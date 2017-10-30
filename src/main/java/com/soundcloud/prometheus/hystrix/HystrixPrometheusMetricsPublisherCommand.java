@@ -180,15 +180,15 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                     if (totalLatency >= 0) {
                         histogramLatencyTotal.observe(totalLatency / 1000d);
                     } else if (totalLatency < -1) {
-                        LOG.warn("received negative totalLatency, event not not counted. " +
+                        LOG.warn("received negative totalLatency, event not counted. " +
                                         "This indicates a clock skew? {}",
                                 hystrixCommandCompletion);
                     }
                     long executionLatency = hystrixCommandCompletion.getExecutionLatency();
                     if (executionLatency >= 0) {
-                        histogramLatencyExecute.observe(hystrixCommandCompletion.getExecutionLatency() / 1000d);
+                        histogramLatencyExecute.observe(executionLatency / 1000d);
                     } else if (executionLatency < -1) {
-                        LOG.warn("received negative executionLatency, event not not counted. " +
+                        LOG.warn("received negative executionLatency, event not counted. " +
                                         "This indicates a clock skew? {}",
                                 hystrixCommandCompletion);
                     }
