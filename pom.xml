@@ -90,12 +90,6 @@
         </dependency>
     </dependencies>
     <distributionManagement>
-        <!--
-        <repository>
-            <id>bintray</id>
-            <url>https://api.bintray.com/maven/ahus1/maven/prometheus-hystrix</url>
-        </repository>
-        -->
         <repository>
             <id>sonatypeosssnapshot</id>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
