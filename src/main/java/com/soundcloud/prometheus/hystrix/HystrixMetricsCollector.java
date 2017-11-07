@@ -13,6 +13,7 @@
  */
 package com.soundcloud.prometheus.hystrix;
 
+import com.soundcloud.prometheus.hystrix.util.Consumer;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
@@ -24,8 +25,6 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * Implementation of a Prometheus Collector for Hystrix metrics.
@@ -35,9 +34,9 @@ public class HystrixMetricsCollector extends Collector {
     private static final Logger LOG = LoggerFactory.getLogger(HystrixMetricsCollector.class);
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Map<Gauge, List<Value>> gauges = new HashMap<>();
-    private final Map<String, Histogram> histograms = new HashMap<>();
-    private final Map<String, Counter> counters = new HashMap<>();
+    private final Map<Gauge, List<Value>> gauges = new HashMap<Gauge, List<Value>>();
+    private final Map<String, Histogram> histograms = new HashMap<String, Histogram>();
+    private final Map<String, Counter> counters = new HashMap<String, Counter>();
 
     private final String namespace;
     private Consumer<Histogram.Builder> histogramParameterizer;
@@ -55,7 +54,11 @@ public class HystrixMetricsCollector extends Collector {
         lock.writeLock().lock();
         try {
             Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
-            List<Value> values = gauges.computeIfAbsent(gauge, k -> new ArrayList<>());
+            List<Value> values = gauges.get(gauge);
+            if (values == null) {
+                values = new ArrayList<Value>();
+                gauges.put(gauge, values);
+            }
             values.add(new Value(labels, value));
         } finally {
             lock.writeLock().unlock();
@@ -109,10 +112,13 @@ public class HystrixMetricsCollector extends Collector {
     public List<MetricFamilySamples> collect() {
         lock.readLock().lock();
         try {
-            List<MetricFamilySamples> samples = new LinkedList<>();
-            samples.addAll(gauges.entrySet().stream()
-                    .map(e -> e.getKey().toSamples(e.getValue()))
-                    .collect(Collectors.toList()));
+            List<MetricFamilySamples> samples = new LinkedList<MetricFamilySamples>();
+            List<MetricFamilySamples> list = new ArrayList<MetricFamilySamples>();
+            for (Map.Entry<Gauge, List<Value>> e : gauges.entrySet()) {
+                MetricFamilySamples metricFamilySamples = e.getKey().toSamples(e.getValue());
+                list.add(metricFamilySamples);
+            }
+            samples.addAll(list);
             Enumeration<MetricFamilySamples> enumeration = registry.metricFamilySamples();
             while (enumeration.hasMoreElements()) {
                 samples.add(enumeration.nextElement());
@@ -134,10 +140,14 @@ public class HystrixMetricsCollector extends Collector {
         }
 
         public MetricFamilySamples toSamples(List<Value> values) {
-            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, values.stream()
-                    .map(v -> v.toSample(name))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList()));
+            List<MetricFamilySamples.Sample> list = new ArrayList<MetricFamilySamples.Sample>();
+            for (Value v : values) {
+                MetricFamilySamples.Sample sample = v.toSample(name);
+                if (sample != null) {
+                    list.add(sample);
+                }
+            }
+            return new MetricFamilySamples(name, Type.GAUGE, helpDoc, list);
         }
 
         @Override
@@ -164,8 +174,8 @@ public class HystrixMetricsCollector extends Collector {
         private final Callable<Number> value;
 
         public Value(Map<String, String> labels, Callable<Number> value) {
-            this.labelNames = new ArrayList<>(labels.keySet());
-            this.labelValues = new ArrayList<>(labels.values());
+            this.labelNames = new ArrayList<String>(labels.keySet());
+            this.labelValues = new ArrayList<String>(labels.values());
             this.value = value;
         }
 

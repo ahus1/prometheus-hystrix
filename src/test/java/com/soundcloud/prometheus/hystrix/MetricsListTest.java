@@ -5,7 +5,6 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import org.assertj.core.api.Assertions;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.FileWriter;
@@ -34,9 +33,12 @@ public class MetricsListTest {
         command.execute();
 
         // then
-        try (Writer writer = new FileWriter("target/sample.txt")) {
+        Writer writer = new FileWriter("target/sample.txt");
+        try {
             TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
             writer.flush();
+        } finally {
+            writer.close();
         }
     }
 

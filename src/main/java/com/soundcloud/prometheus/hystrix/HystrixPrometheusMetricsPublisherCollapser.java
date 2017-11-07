@@ -63,7 +63,12 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createRollingCountForEvent("rolling_count_responses_from_cache", HystrixRollingNumberEvent.RESPONSE_FROM_CACHE);
 
         String batchDoc = "Collapser the batch size metric.";
-        addGauge("batch_size_mean", batchDoc, metrics::getBatchSizeMean);
+        addGauge("batch_size_mean", batchDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getBatchSizeMean();
+            }
+        });
 
         createBatchSizePercentile("batch_size_percentile_25", 25, batchDoc);
         createBatchSizePercentile("batch_size_percentile_50", 50, batchDoc);
@@ -73,7 +78,12 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         createBatchSizePercentile("batch_size_percentile_995", 99.5, batchDoc);
 
         String shardDoc = "Collapser shard size metric.";
-        addGauge("shard_size_mean", shardDoc, metrics::getShardSizeMean);
+        addGauge("shard_size_mean", shardDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getShardSizeMean();
+            }
+        });
 
         createShardSizePercentile("shard_size_percentile_25", 25, shardDoc);
         createShardSizePercentile("shard_size_percentile_50", 50, shardDoc);
@@ -86,35 +96,75 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
             String doc = "Configuration property partitioned by collapser_name.";
 
             addGauge("property_value_max_requests_in_batch", doc,
-                    () -> properties.maxRequestsInBatch().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return properties.maxRequestsInBatch().get();
+                        }
+                    });
 
             addGauge("property_value_request_cache_enabled", doc,
-                    () -> properties.requestCacheEnabled().get() ? 1 : 0);
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return properties.requestCacheEnabled().get() ? 1 : 0;
+                        }
+                    });
 
             addGauge("property_value_timer_delay_in_milliseconds", doc,
-                    () -> properties.timerDelayInMilliseconds().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return properties.timerDelayInMilliseconds().get();
+                        }
+                    });
 
             addGauge("property_value_rolling_statistical_window_in_milliseconds", doc,
-                    () -> properties.metricsRollingStatisticalWindowInMilliseconds().get());
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return properties.metricsRollingStatisticalWindowInMilliseconds().get();
+                        }
+                    });
         }
     }
 
     private void createCumulativeCountForEvent(String metric, final HystrixRollingNumberEvent event) {
         String doc = "These are cumulative counts since the start of the application.";
-        addGauge(metric, doc, () -> metrics.getCumulativeCount(event));
+        addGauge(metric, doc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCumulativeCount(event);
+            }
+        });
     }
 
     private void createRollingCountForEvent(String metric, final HystrixRollingNumberEvent event) {
         String doc = "These are \"point in time\" counts representing the last X seconds.";
-        addGauge(metric, doc, () -> metrics.getRollingCount(event));
+        addGauge(metric, doc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getRollingCount(event);
+            }
+        });
     }
 
     private void createBatchSizePercentile(String metric, final double percentile, String documentation) {
-        addGauge(metric, documentation, () -> metrics.getBatchSizePercentile(percentile));
+        addGauge(metric, documentation, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getBatchSizePercentile(percentile);
+            }
+        });
     }
 
     private void createShardSizePercentile(String metric, final double percentile, String documentation) {
-        addGauge(metric, documentation, () -> metrics.getShardSizePercentile(percentile));
+        addGauge(metric, documentation, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getShardSizePercentile(percentile);
+            }
+        });
     }
 
     private void addGauge(String metric, String helpDoc, Callable<Number> value) {

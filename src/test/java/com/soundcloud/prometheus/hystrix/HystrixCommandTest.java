@@ -4,6 +4,7 @@ import com.netflix.hystrix.Hystrix;
 import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
 import io.prometheus.client.CollectorRegistry;
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,9 +73,13 @@ public class HystrixCommandTest {
 
         // when
         for (int i = 0; i < 10; i++) {
-            TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", commandProperties);
-            assertThatThrownBy(() -> command.execute())
-                    .isExactlyInstanceOf(HystrixRuntimeException.class);
+            final TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", commandProperties);
+            assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
+                @Override
+                public void call() throws Throwable {
+                    command.execute();
+                }
+            }).isExactlyInstanceOf(HystrixRuntimeException.class);
         }
 
         // then
@@ -119,9 +124,13 @@ public class HystrixCommandTest {
                 .withExecutionTimeoutInMilliseconds(1);
 
         // when
-        TestHystrixCommand command = new TestHystrixCommand("shouldCountCommandsRunIntoTimeout", commandProperties).willWait(1000);
-        assertThatThrownBy(() -> command.execute())
-                .isExactlyInstanceOf(HystrixRuntimeException.class);
+        final TestHystrixCommand command = new TestHystrixCommand("shouldCountCommandsRunIntoTimeout", commandProperties).willWait(1000);
+        assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
+            @Override
+            public void call() throws Throwable {
+                command.execute();
+            }
+        }).isExactlyInstanceOf(HystrixRuntimeException.class);
 
         // then
         assertThat(CollectorRegistry.defaultRegistry.getSampleValue(
@@ -198,11 +207,15 @@ public class HystrixCommandTest {
     @Test
     public void shouldIncrementTotalsForFailure() {
         // given
-        TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram").willFail();
+        final TestHystrixCommand command = new TestHystrixCommand("shouldIncrementCounterHistogram").willFail();
 
         // when
-        assertThatThrownBy(() ->
-                command.execute()).isExactlyInstanceOf(HystrixRuntimeException.class);
+        assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
+            @Override
+            public void call() throws Throwable {
+                command.execute();
+            }
+        }).isExactlyInstanceOf(HystrixRuntimeException.class);
 
         // then
         assertThat(CollectorRegistry.defaultRegistry

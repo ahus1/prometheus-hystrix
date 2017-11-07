@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>de.ahus1.prometheus.hystrix</groupId>
     <artifactId>prometheus-hystrix</artifactId>
@@ -31,8 +32,9 @@
         </developer>
     </developers>
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- both Hystrix and Prometheus require only JDK6+ - so should we -->
+        <maven.compiler.source>1.6</maven.compiler.source>
+        <maven.compiler.target>1.6</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <issueManagement>
@@ -43,8 +45,8 @@
         <connection>scm:git:git@github.com:ahus1/prometheus-hystrix.git</connection>
         <developerConnection>scm:git:git@github.com:ahus1/prometheus-hystrix.git</developerConnection>
         <url>scm:git:git@github.com:ahus1/prometheus-hystrix.git</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
     <dependencies>
         <dependency>
             <groupId>io.prometheus</groupId>
@@ -101,6 +103,27 @@
     </distributionManagement>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-maven-plugin</artifactId>
+                <version>1.16</version>
+                <executions>
+                    <execution>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <signature>
+                        <groupId>org.codehaus.mojo.signature</groupId>
+                        <!-- both Hystrix and Prometheus require only JDK6+ - so should we -->
+                        <artifactId>java16</artifactId>
+                        <version>1.0</version>
+                    </signature>
+                </configuration>
+            </plugin>
             <plugin>
                 <artifactId>maven-release-plugin</artifactId>
                 <version>2.5.2</version>

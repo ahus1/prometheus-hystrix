@@ -56,34 +56,107 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         delegate.initialize();
 
         String currentStateDoc = "Current state of thread-pool partitioned by pool_name.";
-        addGauge("thread_active_count", currentStateDoc, metrics::getCurrentActiveCount);
-        addGauge("completed_task_count", currentStateDoc, metrics::getCurrentCompletedTaskCount);
-        addGauge("largest_pool_size", currentStateDoc, metrics::getCurrentLargestPoolSize);
-        addGauge("total_task_count", currentStateDoc, metrics::getCurrentTaskCount);
-        addGauge("queue_size", currentStateDoc, metrics::getCurrentQueueSize);
+        addGauge("thread_active_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCurrentActiveCount();
+            }
+        });
+        addGauge("completed_task_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCurrentCompletedTaskCount();
+            }
+        });
+        addGauge("largest_pool_size", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCurrentLargestPoolSize();
+            }
+        });
+        addGauge("total_task_count", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCurrentTaskCount();
+            }
+        });
+        addGauge("queue_size", currentStateDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCurrentQueueSize();
+            }
+        });
 
         String rollDoc = "Rolling count partitioned by pool_name.";
-        if(exportDeprecatedMetrics) {
-            addGauge("rolling_max_active_threads", "DEPRECATED, use rolling_active_threads_max instead: " + rollDoc, metrics::getRollingMaxActiveThreads);
+        if (exportDeprecatedMetrics) {
+            addGauge("rolling_max_active_threads", "DEPRECATED, use rolling_active_threads_max instead: " + rollDoc,
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return metrics.getRollingMaxActiveThreads();
+                        }
+                    });
         }
-        addGauge("rolling_active_threads_max", rollDoc, metrics::getRollingMaxActiveThreads);
+        addGauge("rolling_active_threads_max", rollDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getRollingMaxActiveThreads();
+            }
+        });
 
-        if(exportDeprecatedMetrics) {
-            addGauge("rolling_count_threads_executed", "DEPRECATED, use rate(threads_executed_total) instead: " + rollDoc, metrics::getRollingCountThreadsExecuted);
+        if (exportDeprecatedMetrics) {
+            addGauge("rolling_count_threads_executed", "DEPRECATED, use rate(threads_executed_total) instead: " + rollDoc,
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return metrics.getRollingCountThreadsExecuted();
+                        }
+                    });
         }
 
         String totalDoc = "Cumulative count partitioned by pool_name.";
-        if(exportDeprecatedMetrics) {
-            addGauge("count_threads_executed", "DEPRECATED: " + totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        if (exportDeprecatedMetrics) {
+            addGauge("count_threads_executed", "DEPRECATED: " + totalDoc,
+                    new Callable<Number>() {
+                        @Override
+                        public Number call() throws Exception {
+                            return metrics.getCumulativeCountThreadsExecuted();
+                        }
+                    });
         }
-        addGauge("threads_executed_total", totalDoc, metrics::getCumulativeCountThreadsExecuted);
+        addGauge("threads_executed_total", totalDoc, new Callable<Number>() {
+            @Override
+            public Number call() throws Exception {
+                return metrics.getCumulativeCountThreadsExecuted();
+            }
+        });
 
         if (exportProperties) {
             String doc = "Configuration property partitioned by pool_name.";
-            addGauge("property_value_core_pool_size", doc, () -> properties.coreSize().get());
-            addGauge("property_value_keep_alive_time_in_minutes", doc, () -> properties.keepAliveTimeMinutes().get());
-            addGauge("property_value_queue_size_rejection_threshold", doc, () -> properties.queueSizeRejectionThreshold().get());
-            addGauge("property_value_max_queue_size", doc, () -> properties.maxQueueSize().get());
+            addGauge("property_value_core_pool_size", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return properties.coreSize().get();
+                }
+            });
+            addGauge("property_value_keep_alive_time_in_minutes", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return properties.keepAliveTimeMinutes().get();
+                }
+            });
+            addGauge("property_value_queue_size_rejection_threshold", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return properties.queueSizeRejectionThreshold().get();
+                }
+            });
+            addGauge("property_value_max_queue_size", doc, new Callable<Number>() {
+                @Override
+                public Number call() throws Exception {
+                    return properties.maxQueueSize().get();
+                }
+            });
         }
     }
 

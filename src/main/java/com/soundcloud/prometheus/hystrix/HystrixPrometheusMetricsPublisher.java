@@ -27,7 +27,9 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixPropertiesStrategy;
 import com.netflix.hystrix.strategy.properties.HystrixPropertiesStrategyDefault;
+import com.soundcloud.prometheus.hystrix.util.Consumer;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Histogram;
 
 /**
  * Implementation of a {@link HystrixMetricsPublisher} for Prometheus Metrics.
@@ -74,19 +76,23 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             HystrixPropertiesStrategy propertiesStrategy = plugins.getPropertiesStrategy();
             HystrixConcurrencyStrategy concurrencyStrategy = plugins.getConcurrencyStrategy();
 
-            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace, builder -> {
-                if (metrics == MetricsType.EXPONENTIAL) {
-                    builder.exponentialBuckets(exponentialStart, exponentialFactor, exponentialCount);
-                } else if (metrics == MetricsType.LINEAR) {
-                    builder.linearBuckets(linearStart, linearWidth, linearCount);
-                } else if (metrics == MetricsType.DISTINCT) {
-                    builder.buckets(distinctBuckets);
-                } else if (metrics == MetricsType.DEFAULT) {
-                    // nothing to do
-                } else {
-                    throw new IllegalStateException("unknown enum state " + metrics);
-                }
-            }).register(registry);
+            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace,
+                    new Consumer<Histogram.Builder>() {
+                        @Override
+                        public void accept(Histogram.Builder builder) {
+                            if (metrics == MetricsType.EXPONENTIAL) {
+                                builder.exponentialBuckets(exponentialStart, exponentialFactor, exponentialCount);
+                            } else if (metrics == MetricsType.LINEAR) {
+                                builder.linearBuckets(linearStart, linearWidth, linearCount);
+                            } else if (metrics == MetricsType.DISTINCT) {
+                                builder.buckets(distinctBuckets);
+                            } else if (metrics == MetricsType.DEFAULT) {
+                                // nothing to do
+                            } else {
+                                throw new IllegalStateException("unknown enum state " + metrics);
+                            }
+                        }
+                    }).register(registry);
 
             // wrap the metrics publisher plugin
             HystrixPrometheusMetricsPublisher wrappedMetricsPublisher =

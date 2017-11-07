@@ -1,3 +1,7 @@
+# v3.4.0 - unreleased
+
+* support JDK6 and JDK7 as both are still supported by Prometheus and Hystrix as well #16
+
 # v3.3.1 - 30 October 2017
 
 * non-executed commands (i.e. due to active circuit breakers) should not update histograms (#12)
