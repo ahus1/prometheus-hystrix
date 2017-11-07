@@ -16,13 +16,17 @@ package com.soundcloud.prometheus.hystrix;
 import com.netflix.hystrix.*;
 import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.netflix.hystrix.strategy.concurrency.HystrixConcurrencyStrategy;
+import com.netflix.hystrix.strategy.concurrency.HystrixConcurrencyStrategyDefault;
 import com.netflix.hystrix.strategy.eventnotifier.HystrixEventNotifier;
+import com.netflix.hystrix.strategy.eventnotifier.HystrixEventNotifierDefault;
 import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHook;
+import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHookDefault;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisher;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCommand;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 import com.netflix.hystrix.strategy.properties.HystrixPropertiesStrategy;
+import com.netflix.hystrix.strategy.properties.HystrixPropertiesStrategyDefault;
 import io.prometheus.client.CollectorRegistry;
 
 /**
@@ -31,9 +35,11 @@ import io.prometheus.client.CollectorRegistry;
  */
 public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
-    private enum MetricsType { EXPONENTIAL, LINEAR, DISTINCT, DEFAULT }
+    private enum MetricsType {EXPONENTIAL, LINEAR, DISTINCT, DEFAULT}
 
-    /** Build an instance {@link HystrixPrometheusMetricsPublisher}. Use {@link #buildAndRegister()} to finalize. */
+    /**
+     * Build an instance {@link HystrixPrometheusMetricsPublisher}. Use {@link #buildAndRegister()} to finalize.
+     */
     public static class Builder {
         private String namespace = null;
         private CollectorRegistry registry = CollectorRegistry.defaultRegistry;
@@ -52,30 +58,30 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
         private double[] distinctBuckets;
 
+        // will do this as default for release 3.3.x, might change in future releases
+        private boolean registerDefaultPlugins = true;
+
         private Builder() {
         }
 
         public void buildAndRegister() {
+            HystrixPlugins plugins = HystrixPlugins.getInstance();
+
             // memorize the registered plugins
-            HystrixCommandExecutionHook commandExecutionHook = HystrixPlugins
-                    .getInstance().getCommandExecutionHook();
-            HystrixEventNotifier eventNotifier = HystrixPlugins.getInstance()
-                    .getEventNotifier();
-            HystrixMetricsPublisher metricsPublisher = HystrixPlugins.getInstance()
-                    .getMetricsPublisher();
-            HystrixPropertiesStrategy propertiesStrategy = HystrixPlugins.getInstance()
-                    .getPropertiesStrategy();
-            HystrixConcurrencyStrategy concurrencyStrategy = HystrixPlugins.getInstance()
-                    .getConcurrencyStrategy();
+            HystrixCommandExecutionHook commandExecutionHook = plugins.getCommandExecutionHook();
+            HystrixEventNotifier eventNotifier = plugins.getEventNotifier();
+            HystrixMetricsPublisher metricsPublisher = plugins.getMetricsPublisher();
+            HystrixPropertiesStrategy propertiesStrategy = plugins.getPropertiesStrategy();
+            HystrixConcurrencyStrategy concurrencyStrategy = plugins.getConcurrencyStrategy();
 
             HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace, builder -> {
-                if(metrics == MetricsType.EXPONENTIAL) {
+                if (metrics == MetricsType.EXPONENTIAL) {
                     builder.exponentialBuckets(exponentialStart, exponentialFactor, exponentialCount);
-                } else if(metrics == MetricsType.LINEAR) {
+                } else if (metrics == MetricsType.LINEAR) {
                     builder.linearBuckets(linearStart, linearWidth, linearCount);
-                } else if(metrics == MetricsType.DISTINCT) {
+                } else if (metrics == MetricsType.DISTINCT) {
                     builder.buckets(distinctBuckets);
-                } else if(metrics == MetricsType.DEFAULT) {
+                } else if (metrics == MetricsType.DEFAULT) {
                     // nothing to do
                 } else {
                     throw new IllegalStateException("unknown enum state " + metrics);
@@ -89,15 +95,38 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
             // reset all plugins
             HystrixPlugins.reset();
+            // the following statement wouldn't be necessary, but I'm paranoid that reset might
+            // change the plugin instance.
+            plugins = HystrixPlugins.getInstance();
 
-            // set previous values for all plugins ...
-            HystrixPlugins.getInstance().registerConcurrencyStrategy(concurrencyStrategy);
-            HystrixPlugins.getInstance().registerCommandExecutionHook(commandExecutionHook);
-            HystrixPlugins.getInstance().registerEventNotifier(eventNotifier);
-            HystrixPlugins.getInstance().registerPropertiesStrategy(propertiesStrategy);
+            // set previous values for all plugins, but not if they would use the default implementation,
+            // as this would block the slot for plugins to be registered.
+
+            // REASON: if there was no previous setting, Hystrix would have returned the default implementation
+            // and not all other plugin use the reset-and-wrap approach we do here.
+
+            // ASSUMPTION: the default strategies/hooks can't wrap a different strategy/hook
+
+            // CAVEAT: instead of a default implementation there is a sophisticated Archaius configuration mechanism
+            // to determine a class from property settings. There is a corner case where someone would register a
+            // default implementation manually overriding an Archaius configuration. Therefore this is configurable
+            // using "registerDefaultPlugins".
+
+            if (registerDefaultPlugins || concurrencyStrategy.getClass() != HystrixConcurrencyStrategyDefault.class) {
+                plugins.registerConcurrencyStrategy(concurrencyStrategy);
+            }
+            if (registerDefaultPlugins || commandExecutionHook.getClass() != HystrixCommandExecutionHookDefault.class) {
+                plugins.registerCommandExecutionHook(commandExecutionHook);
+            }
+            if (registerDefaultPlugins || eventNotifier.getClass() != HystrixEventNotifierDefault.class) {
+                plugins.registerEventNotifier(eventNotifier);
+            }
+            if (registerDefaultPlugins || propertiesStrategy.getClass() != HystrixPropertiesStrategyDefault.class) {
+                plugins.registerPropertiesStrategy(propertiesStrategy);
+            }
 
             // ... except for the metrics publisher that will now be wrapped
-            HystrixPlugins.getInstance().registerMetricsPublisher(wrappedMetricsPublisher);
+            plugins.registerMetricsPublisher(wrappedMetricsPublisher);
         }
 
         public Builder withNamespace(String namespace) {
@@ -120,6 +149,11 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             return this;
         }
 
+        public Builder shouldRegisterDefaultPlugins(boolean registerDefaultPlugins) {
+            this.registerDefaultPlugins = registerDefaultPlugins;
+            return this;
+        }
+
         public Builder withExponentialBuckets(double start, double factor, int count) {
             this.metrics = MetricsType.EXPONENTIAL;
             this.exponentialStart = start;
@@ -137,7 +171,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
         public Builder withLinearBuckets(double start, double width, int count) {
             this.metrics = MetricsType.LINEAR;
             this.linearStart = start;
-            this.linearWidth= width;
+            this.linearWidth = width;
             this.linearCount = count;
             return this;
         }
@@ -163,9 +197,9 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     private final boolean exportDeprecatedMetrics;
 
     private HystrixPrometheusMetricsPublisher(boolean exportProperties,
-                                             boolean exportDeprecatedMetrics,
-                                             HystrixMetricsCollector collector,
-                                             HystrixMetricsPublisher metricsPublisherDelegate) {
+                                              boolean exportDeprecatedMetrics,
+                                              HystrixMetricsCollector collector,
+                                              HystrixMetricsPublisher metricsPublisherDelegate) {
         this.collector = collector;
         this.exportProperties = exportProperties;
         this.exportDeprecatedMetrics = exportDeprecatedMetrics;

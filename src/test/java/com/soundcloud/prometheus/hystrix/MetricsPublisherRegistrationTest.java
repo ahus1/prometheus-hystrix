@@ -2,6 +2,7 @@ package com.soundcloud.prometheus.hystrix;
 
 import com.netflix.hystrix.Hystrix;
 import com.netflix.hystrix.strategy.HystrixPlugins;
+import com.netflix.hystrix.strategy.executionhook.HystrixCommandExecutionHook;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherDefault;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
@@ -41,6 +42,23 @@ public class MetricsPublisherRegistrationTest {
                                 "command_any", "success"}))
                 .describedAs("counter is present")
                 .isGreaterThan(0);
+    }
+
+    @Test
+    public void shouldReRegisterCustomHystrixPlugins() {
+        // given
+        // ... a plugin is already registered
+        HystrixCommandExecutionHook plugin = new HystrixCommandExecutionHook() {
+        };
+        HystrixPlugins.getInstance().registerCommandExecutionHook(plugin);
+
+        // when
+        // ... we register
+        HystrixPrometheusMetricsPublisher.builder().shouldRegisterDefaultPlugins(false).buildAndRegister();
+
+        // then
+        // ... the other plugin is still registered.
+        assertThat(HystrixPlugins.getInstance().getCommandExecutionHook()).isEqualTo(plugin);
     }
 
 }
