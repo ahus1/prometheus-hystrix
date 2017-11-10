@@ -14,7 +14,11 @@ _This continues the work started at SoundCloud. The roadmap is the following:_
 * Support ongoing development
 * Long term goal: merge this project with https://github.com/prometheus/client_java[Prometheus Java Simple Client].
 
-## USAGE
+To use this library you can use Java 6, 7 or 8. Later versions should work, but have not been tested yet - please create it ticket if you experience problems.
+
+Continuous integration tests run on Java 7 and 8 only as Java 6 doesn't seem to be available any more on TravisCI.
+
+== USAGE
 
 Include the most recent release from Maven Central in your build configuration.
 

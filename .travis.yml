@@ -1,13 +1,14 @@
 language: java
 jdk:
 - oraclejdk8
+- openjdk7
 cache:
   directories:
   - "$HOME/.m2"
 script:
-- "./mvnw --batch-mode test"
+- "./mvnw --batch-mode clean test"
 after_success:
-- '[[ $TRAVIS_BRANCH == "master" ]] && mvn deploy --settings travissettings.xml -DskipTests=true -B'
+- '[[ $TRAVIS_BRANCH == "master" ]] && [[ "$TRAVIS_JDK_VERSION" == "oraclejdk8" ]] && mvn deploy --settings travissettings.xml -DskipTests=true -B'
 env:
   global:
   - SONATYPE_USERNAME=ahus1

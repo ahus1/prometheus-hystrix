@@ -39,9 +39,9 @@ public class HystrixMetricsCollector extends Collector {
     private final Map<String, Counter> counters = new HashMap<String, Counter>();
 
     private final String namespace;
-    private Consumer<Histogram.Builder> histogramParameterizer;
+    private final Consumer<Histogram.Builder> histogramParameterizer;
 
-    private CollectorRegistry registry = new CollectorRegistry();
+    private final CollectorRegistry registry = new CollectorRegistry();
 
     public HystrixMetricsCollector(String namespace, Consumer<Histogram.Builder> histogramParameterizer) {
         this.namespace = namespace;
@@ -49,7 +49,7 @@ public class HystrixMetricsCollector extends Collector {
     }
 
     public void addGauge(String subsystem, String metric, String helpDoc,
-                         Map<String, String> labels, Callable<Number> value) {
+                         SortedMap<String, String> labels, Callable<Number> value) {
 
         lock.writeLock().lock();
         try {
@@ -66,7 +66,7 @@ public class HystrixMetricsCollector extends Collector {
     }
 
     public Histogram.Child addHistogram(String subsystem, String metric, String helpDoc,
-                                        Map<String, String> labels) {
+                                        SortedMap<String, String> labels) {
         lock.writeLock().lock();
         try {
             String name = name(subsystem, metric);
@@ -85,7 +85,7 @@ public class HystrixMetricsCollector extends Collector {
         }
     }
 
-    public Counter.Child addCounter(String subsystem, String metric, String helpDoc, Map<String, String> labels) {
+    public Counter.Child addCounter(String subsystem, String metric, String helpDoc, SortedMap<String, String> labels) {
         lock.writeLock().lock();
         try {
             String name = name(subsystem, metric);
@@ -173,7 +173,7 @@ public class HystrixMetricsCollector extends Collector {
         private final List<String> labelValues;
         private final Callable<Number> value;
 
-        public Value(Map<String, String> labels, Callable<Number> value) {
+        public Value(SortedMap<String, String> labels, Callable<Number> value) {
             this.labelNames = new ArrayList<String>(labels.keySet());
             this.labelValues = new ArrayList<String>(labels.values());
             this.value = value;

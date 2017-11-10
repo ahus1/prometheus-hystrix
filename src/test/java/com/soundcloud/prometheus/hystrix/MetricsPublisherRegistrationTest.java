@@ -7,6 +7,10 @@ import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherDefault;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class MetricsPublisherRegistrationTest {
 
+    private static final Logger LOG = LoggerFactory.getLogger(MetricsPublisherRegistrationTest.class);
+
     @After
     public void teardown() {
         Hystrix.reset();
@@ -22,7 +28,7 @@ public class MetricsPublisherRegistrationTest {
     }
 
     @Test
-    public void shouldRegisterDespitePreviouslyRegisteredHystrixMetricsPlugins() {
+    public void shouldRegisterDespitePreviouslyRegisteredHystrixMetricsPlugins() throws IOException {
         // given
         // ... a provider is already registered
         HystrixPlugins.getInstance().registerMetricsPublisher(HystrixMetricsPublisherDefault.getInstance());
@@ -35,6 +41,7 @@ public class MetricsPublisherRegistrationTest {
         // ... we'll be able to collect metrics for commands
         TestHystrixCommand command = new TestHystrixCommand("any");
         command.execute();
+
         assertThat(CollectorRegistry.defaultRegistry
                 .getSampleValue("exampleapp_hystrix_command_event_total",
                         new String[]{"command_group", "command_name", "event"},

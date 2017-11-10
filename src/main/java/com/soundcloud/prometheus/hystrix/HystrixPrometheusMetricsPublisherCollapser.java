@@ -19,8 +19,8 @@ import com.netflix.hystrix.HystrixCollapserProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherCollapser;
 import com.netflix.hystrix.util.HystrixRollingNumberEvent;
 
-import java.util.Collections;
-import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
 /**
@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetricsPublisherCollapser {
 
-    private final Map<String, String> labels;
+    private final SortedMap<String, String> labels;
     private HystrixMetricsPublisherCollapser delegate;
     private final boolean exportProperties;
 
@@ -46,7 +46,8 @@ public class HystrixPrometheusMetricsPublisherCollapser implements HystrixMetric
         this.collector = collector;
         this.properties = properties;
         this.exportProperties = exportProperties;
-        this.labels = Collections.singletonMap("collapser_name", key.name());
+        this.labels = new TreeMap<String, String>();
+        labels.put("collapser_name", key.name());
         this.delegate = delegate;
     }
 

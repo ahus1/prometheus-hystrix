@@ -1,6 +1,7 @@
 # v3.4.0 - unreleased
 
 * support JDK6 and JDK7 as both are still supported by Prometheus and Hystrix as well #16
+* deterministic sorting of prometheus labels (to ease testing) #16
 * don't automatically register default plugins #14
 
 # v3.3.1 - 30 October 2017

@@ -18,8 +18,8 @@ import com.netflix.hystrix.HystrixThreadPoolMetrics;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.netflix.hystrix.strategy.metrics.HystrixMetricsPublisherThreadPool;
 
-import java.util.Collections;
-import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
 /**
@@ -28,7 +28,7 @@ import java.util.concurrent.Callable;
  */
 public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetricsPublisherThreadPool {
 
-    private final Map<String, String> labels;
+    private final SortedMap<String, String> labels;
     private final boolean exportProperties;
     private final boolean exportDeprecatedMetrics;
 
@@ -46,7 +46,8 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
         this.collector = collector;
         this.properties = properties;
         this.exportProperties = exportProperties;
-        this.labels = Collections.singletonMap("pool_name", key.name());
+        this.labels = new TreeMap<String, String>();
+        this.labels.put("pool_name", key.name());
         this.exportDeprecatedMetrics = exportDeprecatedMetrics;
         this.delegate = delegate;
     }

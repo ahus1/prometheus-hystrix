@@ -35,7 +35,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
 
     private final static Logger LOG = LoggerFactory.getLogger(HystrixPrometheusMetricsPublisherCommand.class);
 
-    private final Map<String, String> labels;
+    private final SortedMap<String, String> labels;
     private final boolean exportProperties;
 
     private final HystrixCommandMetrics metrics;
@@ -400,7 +400,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
     }
 
     private Counter.Child addCounter(String metric, String... additionalLabels) {
-        Map<String, String> labels = new HashMap<String, String>(this.labels);
+        SortedMap<String, String> labels = new TreeMap<String, String>(this.labels);
         labels.putAll(this.labels);
         Iterator<String> l = Arrays.asList(additionalLabels).iterator();
         while (l.hasNext()) {
