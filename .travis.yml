@@ -6,7 +6,7 @@ cache:
   directories:
   - "$HOME/.m2"
 script:
-- "./mvnw --batch-mode clean test"
+- "./mvnw --batch-mode test"
 after_success:
 - '[[ $TRAVIS_BRANCH == "master" ]] && [[ "$TRAVIS_JDK_VERSION" == "oraclejdk8" ]] && mvn deploy --settings travissettings.xml -DskipTests=true -B'
 env:
