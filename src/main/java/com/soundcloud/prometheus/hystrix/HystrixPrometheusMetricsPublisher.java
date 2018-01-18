@@ -63,7 +63,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
         // will do this as default for release 3.3.x, might change in future releases
         private boolean registerDefaultPlugins = true;
 
-        private Builder() {
+        protected Builder() {
         }
 
         protected HystrixMetricsCollector createCollector(String ns, Consumer<Histogram.Builder> histogramParameterizer) {
@@ -206,7 +206,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
     private final HystrixMetricsPublisher metricsPublisherDelegate;
     private final boolean exportDeprecatedMetrics;
 
-    private HystrixPrometheusMetricsPublisher(boolean exportProperties,
+    protected HystrixPrometheusMetricsPublisher(boolean exportProperties,
                                               boolean exportDeprecatedMetrics,
                                               HystrixMetricsCollector collector,
                                               HystrixMetricsPublisher metricsPublisherDelegate) {
