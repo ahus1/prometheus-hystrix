@@ -66,6 +66,10 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
         private Builder() {
         }
 
+        protected HystrixMetricsCollector createCollector(String ns, Consumer<Histogram.Builder> histogramParameterizer) {
+            return new HystrixMetricsCollector(ns, histogramParameterizer);
+        }
+
         public void buildAndRegister() {
             HystrixPlugins plugins = HystrixPlugins.getInstance();
 
@@ -76,7 +80,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             HystrixPropertiesStrategy propertiesStrategy = plugins.getPropertiesStrategy();
             HystrixConcurrencyStrategy concurrencyStrategy = plugins.getConcurrencyStrategy();
 
-            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace,
+            HystrixMetricsCollector collector = createCollector(namespace,
                     new Consumer<Histogram.Builder>() {
                         @Override
                         public void accept(Histogram.Builder builder) {
