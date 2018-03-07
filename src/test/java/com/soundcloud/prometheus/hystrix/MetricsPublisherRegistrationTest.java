@@ -38,9 +38,9 @@ public class MetricsPublisherRegistrationTest {
 
         assertThat(CollectorRegistry.defaultRegistry
                 .getSampleValue("exampleapp_hystrix_command_event_total",
-                        new String[]{"command_group", "command_name", "event"},
+                        new String[]{"command_group", "command_name", "event", "terminal"},
                         new String[]{"group_any",
-                                "command_any", "success"}))
+                                "command_any", "success", "true"}))
                 .describedAs("counter is present")
                 .isGreaterThan(0);
     }

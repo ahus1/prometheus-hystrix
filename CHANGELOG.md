@@ -1,3 +1,14 @@
+# v4.0.0 - xx March 2018
+
+* Add additional label _terminal_ to all metrics of name _hystrix_command_event_total_. 
+Use this to identify if the event is a terminal event.
+* Marking _hystrix_command_total_ as deprecated. 
+Instead you should you should sum up all _hystrix_command_event_total_ with state "terminal" set to "true".
+* Marking _hystrix_command_error_total_ as deprecated. 
+Instead you should you should sum up all _hystrix_command_event_total_ with state "terminal" set to "true"
+that you consider errors in your scenarios.
+* Events that are SHORT_CIRCUITED
+
 # v3.4.0 - 10 November 2017
 
 * support JDK6 and JDK7 as both are still supported by Prometheus and Hystrix as well #16

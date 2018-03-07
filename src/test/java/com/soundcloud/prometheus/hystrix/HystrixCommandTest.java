@@ -39,9 +39,9 @@ public class HystrixCommandTest {
         // then
         assertThat(CollectorRegistry.defaultRegistry
                 .getSampleValue("exampleapp_hystrix_command_event_total",
-                        new String[]{"command_group", "command_name", "event"},
+                        new String[]{"command_group", "command_name", "event", "terminal"},
                         new String[]{"group_shouldIncrementCounterOnSuccecssfulCommand",
-                                "command_shouldIncrementCounterOnSuccecssfulCommand", "success"}))
+                                "command_shouldIncrementCounterOnSuccecssfulCommand", "success", "true"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
     }
@@ -76,7 +76,7 @@ public class HystrixCommandTest {
             final TestHystrixCommand command = new TestHystrixCommand("shouldNotIncrementCounterHistogram", commandProperties);
             assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
                 @Override
-                public void call() throws Throwable {
+                public void call() {
                     command.execute();
                 }
             }).isExactlyInstanceOf(HystrixRuntimeException.class);
@@ -127,7 +127,7 @@ public class HystrixCommandTest {
         final TestHystrixCommand command = new TestHystrixCommand("shouldCountCommandsRunIntoTimeout", commandProperties).willWait(1000);
         assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
             @Override
-            public void call() throws Throwable {
+            public void call() {
                 command.execute();
             }
         }).isExactlyInstanceOf(HystrixRuntimeException.class);
@@ -212,7 +212,7 @@ public class HystrixCommandTest {
         // when
         assertThatThrownBy(new ThrowableAssert.ThrowingCallable() {
             @Override
-            public void call() throws Throwable {
+            public void call() {
                 command.execute();
             }
         }).isExactlyInstanceOf(HystrixRuntimeException.class);
@@ -249,14 +249,14 @@ public class HystrixCommandTest {
         // then
         assertThat(CollectorRegistry.defaultRegistry
                 .getSampleValue("exampleapp_hystrix_command_event_total",
-                        new String[]{"command_group", "command_name", "event"},
-                        new String[]{"group_cmd1", "command_cmd1", "success"}))
+                        new String[]{"command_group", "command_name", "event", "terminal"},
+                        new String[]{"group_cmd1", "command_cmd1", "success", "true"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
         assertThat(CollectorRegistry.defaultRegistry
                 .getSampleValue("exampleapp_hystrix_command_event_total",
-                        new String[]{"command_group", "command_name", "event"},
-                        new String[]{"group_cmd2", "command_cmd2", "success"}))
+                        new String[]{"command_group", "command_name", "event", "terminal"},
+                        new String[]{"group_cmd2", "command_cmd2", "success", "true"}))
                 .describedAs("counter of successful executions")
                 .isEqualTo(1);
     }
