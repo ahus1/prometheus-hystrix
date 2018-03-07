@@ -27,7 +27,7 @@ Include the most recent release from Maven Central in your build configuration.
 <dependency>
     <groupId>de.ahus1.prometheus.hystrix</groupId>
     <artifactId>prometheus-hystrix</artifactId>
-    <version>3.x.x</version>
+    <version>4.x.x</version>
 </dependency>
 ----
 
@@ -39,7 +39,7 @@ import com.soundcloud.prometheus.hystrix.HystrixPrometheusMetricsPublisher;
 
 // ...
 
-HystrixPrometheusMetricsPublisher.register("application_name");
+HystrixPrometheusMetricsPublisher.register();
 ----
 
 Register the publisher for your application's namespace with your own Prometheus CollectorRegistry with Hystrix.
@@ -52,7 +52,36 @@ import io.prometheus.client.CollectorRegistry;
 // ...
 
 CollectorRegistry registry = // ...
-HystrixPrometheusMetricsPublisher.register("application_name", registry);
+HystrixPrometheusMetricsPublisher.builder().withRegistry(registry).buildAndRegister();
+----
+
+For all advanced options, please use the _.builder()_ like in the previous example.
+
+== STATISTICS
+
+Most metrics are similar to the standard Hystrix are straightforward to use.
+
+The events emitted by each _HystrixCommand_ might need a little bit more explanation:
+Each _HystrixCommand_ can create multiple events, but only one _terminal_ event.
+The following provides the rate of each event type per command:
+
+----
+irate(hystrix_command_event_total [1m])
+----
+
+The following provides the percentage of the events over all commands:
+
+----
+irate(hystrix_command_event_total [1m])
+/ ignoring(event) group_left
+sum(irate(hystrix_command_event_total{terminal='true'} [1m]))
+  by (command_group, command_name, instance, job, terminal)
+----
+
+You can add the following suffix condition to hide all events that never happened in your environment:
+
+----
+... AND hystrix_command_event_total > 0
 ----
 
 == DEVELOPMENT
