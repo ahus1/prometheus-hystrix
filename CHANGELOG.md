@@ -1,13 +1,13 @@
-# v4.0.0 - xx March 2018
+# v4.0.0 - 07 March 2018
 
 * Removing all deprecated metrics from 3.x release. This is a breaking change. Therefore bump to next major release.
 * Add additional label _terminal_ to all metrics of name _hystrix_command_event_total_. 
-Use this to identify if the event is a terminal event.
+Use this to identify if the event is a terminal event. #19
 * Marking _hystrix_command_total_ as deprecated. 
-Instead you should you should sum up all _hystrix_command_event_total_ with state "terminal" set to "true".
-* Marking _hystrix_command_error_total_ as deprecated. 
+Instead you should you should sum up all _hystrix_command_event_total_ with state "terminal" set to "true". #19
+* Marking _hystrix_command_error_total_ as deprecated.  
 Instead you should you should sum up all _hystrix_command_event_total_ with state "terminal" set to "true"
-that you consider errors in your scenarios.
+that you consider errors in your scenarios. #19
 
 # v3.4.0 - 10 November 2017
 
