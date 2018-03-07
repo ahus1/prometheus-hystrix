@@ -233,7 +233,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
                 threadPoolKey, metrics, properties);
 
         return new HystrixPrometheusMetricsPublisherThreadPool(
-                collector, threadPoolKey, metrics, properties, exportProperties, exportDeprecatedMetrics, delegate);
+                collector, threadPoolKey, metrics, properties, exportProperties, delegate);
     }
 
     @Override
