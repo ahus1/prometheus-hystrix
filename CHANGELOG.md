@@ -1,3 +1,7 @@
+# not released yet
+
+* Update simpleclient to 0.6.0
+
 # v4.0.0 - 07 March 2018
 
 * Removing all deprecated metrics from 3.x release. This is a breaking change. Therefore bump to next major release.

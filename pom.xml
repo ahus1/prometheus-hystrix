@@ -35,6 +35,7 @@
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <simpleclient.version>0.6.0</simpleclient.version>
     </properties>
     <issueManagement>
         <system>github</system>
@@ -50,13 +51,13 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient</artifactId>
-            <version>0.0.20</version>
+            <version>${simpleclient.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_common</artifactId>
-            <version>0.0.20</version>
+            <version>${simpleclient.version}</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
