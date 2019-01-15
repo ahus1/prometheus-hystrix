@@ -113,7 +113,7 @@ public class HystrixPrometheusMetricsPublisherCommand implements HystrixMetricsP
                         true) : null;
         final Counter.Child errorCounter = exportDeprecatedMetrics ?
                 addCounter("error_total",
-                        "instead of error_total you should sum up all events with \"terminal\" set to ttrue that you consider errors",
+                        "instead of error_total you should sum up all events with \"terminal\" set to true that you consider errors",
                         true) : null;
         HystrixCommandCompletionStream.getInstance(commandKey)
                 .observe()
