@@ -31,6 +31,9 @@ import com.soundcloud.prometheus.hystrix.util.Consumer;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Histogram;
 
+import java.util.SortedMap;
+import java.util.TreeMap;
+
 /**
  * Implementation of a {@link HystrixMetricsPublisher} for Prometheus Metrics.
  * See <a href="https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring">Hystrix Metrics and Monitoring</a>.
@@ -44,6 +47,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
      */
     public static class Builder {
         private String namespace = null;
+        private SortedMap<String, String> commonLabels = new TreeMap<String, String>();
         private CollectorRegistry registry = CollectorRegistry.defaultRegistry;
         private boolean exportProperties = false;
         private boolean exportDeprecatedMetrics = true;
@@ -76,7 +80,7 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
             HystrixPropertiesStrategy propertiesStrategy = plugins.getPropertiesStrategy();
             HystrixConcurrencyStrategy concurrencyStrategy = plugins.getConcurrencyStrategy();
 
-            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace,
+            HystrixMetricsCollector collector = new HystrixMetricsCollector(namespace, commonLabels,
                     new Consumer<Histogram.Builder>() {
                         @Override
                         public void accept(Histogram.Builder builder) {
@@ -137,6 +141,21 @@ public class HystrixPrometheusMetricsPublisher extends HystrixMetricsPublisher {
 
         public Builder withNamespace(String namespace) {
             this.namespace = namespace;
+            return this;
+        }
+
+        public Builder withCommonLabels(String... keyValues) {
+
+            if (keyValues == null || keyValues.length == 0) {
+                return this;
+            }
+            if (keyValues.length % 2 == 1) {
+                throw new IllegalArgumentException("size must be even, it is a set of key=value pairs");
+            }
+            for (int i = 0; i < keyValues.length; i += 2) {
+                this.commonLabels.put(keyValues[i], keyValues[i + 1]);
+            }
+
             return this;
         }
 

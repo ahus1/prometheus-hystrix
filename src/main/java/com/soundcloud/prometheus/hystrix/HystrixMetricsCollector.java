@@ -39,18 +39,21 @@ public class HystrixMetricsCollector extends Collector {
     private final Map<String, Counter> counters = new HashMap<String, Counter>();
 
     private final String namespace;
+    private final SortedMap<String, String> commonLabels;
     private final Consumer<Histogram.Builder> histogramParameterizer;
 
     private final CollectorRegistry registry = new CollectorRegistry();
 
-    public HystrixMetricsCollector(String namespace, Consumer<Histogram.Builder> histogramParameterizer) {
+    public HystrixMetricsCollector(String namespace, SortedMap<String, String> commonLabels, Consumer<Histogram.Builder> histogramParameterizer) {
         this.namespace = namespace;
+        this.commonLabels = commonLabels;
         this.histogramParameterizer = histogramParameterizer;
     }
 
     public void addGauge(String subsystem, String metric, String helpDoc,
                          SortedMap<String, String> labels, Callable<Number> value) {
 
+        labels.putAll(commonLabels);
         lock.writeLock().lock();
         try {
             Gauge gauge = new Gauge(name(subsystem, metric), helpDoc);
@@ -67,6 +70,7 @@ public class HystrixMetricsCollector extends Collector {
 
     public Histogram.Child addHistogram(String subsystem, String metric, String helpDoc,
                                         SortedMap<String, String> labels) {
+        labels.putAll(commonLabels);
         lock.writeLock().lock();
         try {
             String name = name(subsystem, metric);
@@ -86,6 +90,8 @@ public class HystrixMetricsCollector extends Collector {
     }
 
     public Counter.Child addCounter(String subsystem, String metric, String helpDoc, SortedMap<String, String> labels) {
+
+        labels.putAll(commonLabels);
         lock.writeLock().lock();
         try {
             String name = name(subsystem, metric);
