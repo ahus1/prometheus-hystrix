@@ -93,7 +93,7 @@
     </dependencies>
     <distributionManagement>
         <repository>
-            <id>sonatypeosssnapshot</id>
+            <id>sonatypeossstaging</id>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
         <snapshotRepository>
