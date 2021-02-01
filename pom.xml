@@ -63,7 +63,7 @@
         <dependency>
             <groupId>com.netflix.hystrix</groupId>
             <artifactId>hystrix-core</artifactId>
-            <version>1.5.6</version>
+            <version>1.5.9</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

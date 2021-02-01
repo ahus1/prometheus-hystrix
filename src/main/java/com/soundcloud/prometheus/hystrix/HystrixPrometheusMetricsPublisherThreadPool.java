@@ -110,6 +110,12 @@ public class HystrixPrometheusMetricsPublisherThreadPool implements HystrixMetri
                     return properties.coreSize().get();
                 }
             });
+            addGauge("property_value_maximum_size", doc, new Callable<Number>() {
+                @Override
+                public Number call() {
+                    return properties.maximumSize().get();
+                }
+            });
             addGauge("property_value_keep_alive_time_in_minutes", doc, new Callable<Number>() {
                 @Override
                 public Number call() {
