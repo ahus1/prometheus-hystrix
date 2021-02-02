@@ -3,12 +3,13 @@
 This is an implementation of a http://netflix.github.com/Hystrix/javadoc/index.html?com/netflix/hystrix/strategy/metrics/HystrixMetricsPublisher.html[HystrixMetricsPublisher]
 that publishes metrics using Prometheus' https://github.com/prometheus/client_java[SimpleClient].
 
-image:https://img.shields.io/maven-central/v/de.ahus1.prometheus.hystrix/prometheus-hystrix.svg[]
-image:https://travis-ci.org/ahus1/prometheus-hystrix.svg?branch=master[]
+image:https://img.shields.io/maven-central/v/de.ahus1.prometheus.hystrix/prometheus-hystrix.svg[link=https://mvnrepository.com/artifact/de.ahus1.prometheus.hystrix/prometheus-hystrix]
+image:https://github.com/ahus1/prometheus-hystrix/workflows/Java%20CI%20with%20Maven/badge.svg?branch=master[Build Status,link=https://github.com/ahus1/prometheus-hystrix/actions?query=workflow%3A%22Java+CI+with+Maven%22+branch%3Amaster]
 
 See the https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring[Netflix Metrics &amp; Monitoring] Wiki for more information.
 
-_This continues the work started at SoundCloud. The roadmap is the following:_
+_This continues the work started at SoundCloud.
+The roadmap is the following:_
 
 * Adopt best practices in https://prometheus.io/docs/practices/naming/[naming metrics].
 * Support ongoing development
