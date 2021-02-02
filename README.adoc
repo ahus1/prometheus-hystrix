@@ -8,16 +8,22 @@ image:https://github.com/ahus1/prometheus-hystrix/workflows/Java%20CI%20with%20M
 
 See the https://github.com/Netflix/Hystrix/wiki/Metrics-and-Monitoring[Netflix Metrics &amp; Monitoring] Wiki for more information.
 
-_This continues the work started at SoundCloud.
-The roadmap is the following:_
+_This continues the work started at SoundCloud._
+
+The roadmap is the following:
 
 * Adopt best practices in https://prometheus.io/docs/practices/naming/[naming metrics].
+
 * Support ongoing development
-* Long term goal: merge this project with https://github.com/prometheus/client_java[Prometheus Java Simple Client].
+
+Non-Goals:
+
+* merge this project with https://github.com/prometheus/client_java[Prometheus Java Simple Client], as Hystrix is in maintenance mode and is no longer actively developed by Netflix, see the https://github.com/Netflix/Hystrix#hystrix-status[Status message in its GitHub repo].
 
 To use this library you can use Java 6, 7 or 8. Later versions should work, but have not been tested yet - please create it ticket if you experience problems.
 
-Continuous integration tests run on Java 7 and 8 only as Java 6 doesn't seem to be available any more on TravisCI.
+Continuous integration tests run on Java 8 only, but the build is parameterized to be Java 6 compatible.
+Animal sniffer is part of the build to ensure no APIs that are not part of JDK 6 are used.
 
 == USAGE
 
@@ -89,7 +95,11 @@ You can add the following suffix condition to hide all events that never happene
 
 Run `./mvnw package` to compile, test and JARs locally.
 
-The most recent development version (based on the _master_ branch on GitHub) is available from the Sonatype OSS Snapshot Repository. To use it, include the following repository in your _pom.xml_.
+The most recent development version (based on the _master_ branch on GitHub) is available from the Sonatype OSS Snapshot Repository.
+To use it, include the following repository in your _pom.xml_.
+
+To preview the contents in your browser, use the following link: +
+https://oss.sonatype.org/content/repositories/snapshots/de/ahus1/prometheus/hystrix/prometheus-hystrix/
 
 [source,xml]
 ----
