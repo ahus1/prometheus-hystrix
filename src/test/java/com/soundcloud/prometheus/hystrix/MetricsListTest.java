@@ -26,7 +26,10 @@ public class MetricsListTest {
     @Test
     public void shouldWriteNiceMetricsOutput() throws IOException {
         // given
-        HystrixPrometheusMetricsPublisher.builder().shouldExportDeprecatedMetrics(false).buildAndRegister();
+        HystrixPrometheusMetricsPublisher.builder()
+                .shouldExportDeprecatedMetrics(false)
+                .shouldExportProperties(true)
+                .buildAndRegister();
         TestHystrixCommand command = new TestHystrixCommand("any");
 
         // when
